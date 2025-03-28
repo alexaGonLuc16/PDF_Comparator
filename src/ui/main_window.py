@@ -57,7 +57,7 @@ class WorkerThread(QThread):
         for i, (img1, img2) in enumerate(zip(images1, images2)):
         #for i, (img1, img2) in self.selected_pages:
             # Comparar imágenes y obtener coordenadas de diferencias
-            diff_coords = image_comparator.compare_images(img1, img2)
+            diff_coords = image_comparator.find_differences(img1, img2)
             
             # Paso 4: Agrupar diferencias en círculos
             if diff_coords:

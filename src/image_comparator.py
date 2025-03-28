@@ -4,41 +4,69 @@ from PIL import Image
 import cv2
 
 class ImageComparator:
-    def __init__(self, threshold=10):
-        """
-        Args:
-            threshold: Umbral de diferencia para considerar diferentes dos píxeles (0-255)
-        """
-        self.threshold = threshold
+    def __init__(self, threshold=3):
+        self.threshold = threshold  # Umbral para diferencias (0-255)
+        self.min_contour_area = 50
+        self.kernel = np.ones((3, 3), np.uint8)
     
-    def compare_images(self, image_path1, image_path2):
+    @staticmethod
+    def load_image(image_input):
+        #Carga una imagen desde ruta o la convierte si es PIL
+        if isinstance(image_input, str):  # Si es una ruta
+            img = cv2.imread(image_input)
+            if img is None:
+                raise ValueError(f"No se pudo cargar la imagen: {image_input}")
+            return img
+        elif isinstance(image_input, Image.Image):  # Si es PIL (de pdf2image)
+            return cv2.cvtColor(np.array(image_input), cv2.COLOR_RGB2BGR)
+        else:
+            return image_input  # Asume que ya es OpenCV
+    
+    def find_differences(self, img1_input, img2_input):
         """
-        Compara dos imágenes píxel por píxel y devuelve las coordenadas de las diferencias.
-        
-        Returns:
-            diff_coords: Lista de tuplas (x, y) con las coordenadas de los píxeles diferentes
+        Detecta diferencias en imágenes B/N usando solo OpenCV:
+        1. Convierte a escala de grises (si no lo están)
+        2. Binariza las imágenes
+        3. Encuentra diferencias absolutas
+        4. Filtra y resalta cambios
         """
-        # Cargar imágenes
-        img1 = cv2.imread(image_path1)
-        img2 = cv2.imread(image_path2)
+
+        img1 = self.load_image(img1_input)
+        img2 = self.load_image(img2_input)
+
+        # Asegurar que son imágenes B/N (1 canal)
+        if len(img1.shape) > 2:
+            img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        if len(img2.shape) > 2:
+            img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
         
-        # Asegurar que las imágenes tengan el mismo tamaño
-        if img1.shape != img2.shape:
-            raise ValueError("Las imágenes tienen diferentes dimensiones")
+        # Binarización (thresholding adaptativo para mayor robustez)
+        _, bin1 = cv2.threshold(img1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, bin2 = cv2.threshold(img2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # Calcular la diferencia absoluta
-        diff = cv2.absdiff(img1, img2)
+        # Diferencia absoluta
+        diff = cv2.absdiff(bin1, bin2)
         
-        # Convertir a escala de grises para simplificar
-        gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        # Operaciones morfológicas para mejorar la detección
+        diff_processed = cv2.morphologyEx(diff, cv2.MORPH_OPEN, self.kernel)
+        diff_processed = cv2.dilate(diff_processed, self.kernel, iterations=1)
         
-        # Encontrar píxeles que exceden el umbral
-        _, thresholded = cv2.threshold(gray_diff, self.threshold, 255, cv2.THRESH_BINARY)
+        # Encontrar contornos significativos
+        contours, _ = cv2.findContours(diff_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        significant_contours = [c for c in contours if cv2.contourArea(c) >= self.min_contour_area]
         
-        # Obtener coordenadas de píxeles diferentes
-        diff_coords = np.argwhere(thresholded > 0).tolist()
+        # Calcular porcentaje de cambio
+        total_pixels = img1.size
+        changed_pixels = cv2.countNonZero(diff_processed)
+        change_percent = (changed_pixels / total_pixels) * 100
         
-        # Convertir a formato (x, y) 
-        diff_coords = [(coord[1], coord[0]) for coord in diff_coords]  # Intercambiar columna/fila a x/y
+        # Resaltar cambios en la imagen original (en color rojo)
+        if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
+            img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+        else:
+            img2_color = img2.copy()
+            
+        cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
         
-        return diff_coords
+        return img2_color, len(significant_contours), change_percent
+    

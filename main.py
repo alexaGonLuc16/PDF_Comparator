@@ -72,7 +72,7 @@ def process_command_line():
         print(f"Procesando página {i+1}/{len(images1)}...")
         
         # Comparar imágenes y obtener coordenadas de diferencias
-        diff_coords = image_comparator.compare_images(img1, img2)
+        diff_coords = image_comparator.find_differences(img1, img2)
         
         # Paso 4: Agrupar diferencias en círculos
         if diff_coords:
