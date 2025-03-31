@@ -55,10 +55,12 @@ class ImageComparator:
         contours, _ = cv2.findContours(diff_processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         significant_contours = [c for c in contours if cv2.contourArea(c) >= self.min_contour_area]
         
-        # Calcular porcentaje de cambio
-        total_pixels = img1.size
-        changed_pixels = cv2.countNonZero(diff_processed)
-        change_percent = (changed_pixels / total_pixels) * 100
+        # Extraer coordenadas de los contornos encontrados
+        diff_coords = []
+        for contour in significant_contours:
+            for point in contour:
+                x, y = point[0]  # Obtener coordenadas (x, y)
+                diff_coords.append((x, y))
         
         # Resaltar cambios en la imagen original (en color rojo)
         if len(img2.shape) == 2:  # Si la imagen de entrada era B/N, la convertimos a color para el resaltado
@@ -68,5 +70,7 @@ class ImageComparator:
             
         cv2.drawContours(img2_color, significant_contours, -1, (0, 0, 255), 2)
         
-        return img2_color, len(significant_contours), change_percent
+        # Devolver coordenadas de diferencias + imagen resaltada
+        return diff_coords, img2_color
+
     

@@ -24,8 +24,21 @@ class CircleDetector:
         Returns:
             circles: Lista de tuplas (x, y, radius) que representan los círculos
         """
+        
+        #print("Points: ", points[0])
+        #print("Lenght: ", len(points))
         # Convertir lista de puntos a array numpy
-        points_array = np.array(points)
+        #points_array = np.array(points[0])
+        
+        # Validar que todos los puntos son tuplas/listas de 2 elementos
+        valid_points = [p for p in points if isinstance(p, (list, tuple)) and len(p) == 2]
+        
+        # Verificar si hay puntos válidos
+        if not valid_points:
+            return []
+        
+        # Convertir lista de puntos a array numpy
+        points_array = np.array(valid_points)
         
         # Si no hay suficientes puntos, devolver círculos vacíos
         if len(points_array) < self.min_samples:

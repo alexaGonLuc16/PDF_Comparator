@@ -55,7 +55,7 @@ class PDFAnnotator:
         doc.close()
         
         return output_pdf
-    
+            
     def save_circles_to_json(self, circles_by_page, output_path):
         """Guarda la información de los círculos en un archivo JSON."""
         with open(output_path, 'w') as f:

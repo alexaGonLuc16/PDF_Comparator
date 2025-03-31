@@ -2,16 +2,17 @@ import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy)
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt, QByteArray
+from PyQt5.QtCore import Qt, QByteArray, pyqtSignal
 
 class PDFViewer(QWidget):
+    circle_clicked = pyqtSignal(int, dict)  # Señal para comunicar clics
+
     def __init__(self, title="PDF Viewer"):
         super().__init__()  # No pasar argumentos aquí
         self.title = title  # Guardar el título como atributo
         self.document = None
         self.current_page = 0
         self.zoom_factor = 1.0
-        
         self.init_ui()
     
     def init_ui(self):
@@ -31,7 +32,6 @@ class PDFViewer(QWidget):
         self.page_label = QLabel()
         self.page_label.setAlignment(Qt.AlignCenter)
         self.page_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
         self.scroll_area.setWidget(self.page_label)
         
         # Controles de navegación
@@ -113,11 +113,56 @@ class PDFViewer(QWidget):
         # Mostrar en el label
         self.page_label.setPixmap(pixmap)
         self.page_label.resize(pixmap.size())
+
+    def mousePressEvent(self, event):
+        pos = event.pos()
+        print(self.circles_by_page)
+        page_num, clicked_circle = self.detect_circle_click(pos)
+        if clicked_circle:
+            self.circle_clicked.emit(page_num, clicked_circle)
+
     
+    def detect_circle_click(self, pos):
+        print("Pos",pos)
+        """Detecta si un clic ocurre en un círculo y devuelve el círculo."""
+        if self.current_page not in self.formatted_circles_by_page:
+            return None, None
+
+        for circle in self.formatted_circles_by_page[self.current_page]:
+            print(circle)  # Depuración: verificar la estructura de circle
+            rect = fitz.Rect(
+                circle['x'] - circle['radius'],  # x0
+                circle['y'] - circle['radius'],  # y0
+                circle['x'] + circle['radius'],  # x1
+                circle['y'] + circle['radius']   # y1
+            )
+
+            if rect.contains(fitz.Point(pos.x(), pos.y())):
+                return self.current_page, circle
+        return None, None
+
+    def set_circles(self, circles_by_page):
+        """Establece los círculos detectados por página."""
+        self.circles_by_page = circles_by_page
+
+        self.formatted_circles_by_page = {}
+
+        for page, circles in circles_by_page.items():
+            self.formatted_circles_by_page[page] = []
+            for circle in circles:
+                self.formatted_circles_by_page[page].append({
+                    "x": circle[0],
+                    "y": circle[1],
+                    "radius": circle[2]
+                })
+            print(circles)
+
+        self.render_current_page()
+        
     def reload_page(self):
         """Recarga la página actual (útil cuando cambian las anotaciones)."""
         self.render_current_page()
-    
+
     def next_page(self):
         """Navega a la siguiente página."""
         if self.document and self.current_page < self.document.page_count - 1:
