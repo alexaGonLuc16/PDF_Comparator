@@ -6,7 +6,7 @@ import cv2
 class ImageComparator:
     def __init__(self, threshold=3):
         self.threshold = threshold  # Umbral para diferencias (0-255)
-        self.min_contour_area = 50
+        self.min_contour_area = 5
         self.kernel = np.ones((3, 3), np.uint8)
     
     @staticmethod
@@ -72,5 +72,4 @@ class ImageComparator:
         
         # Devolver coordenadas de diferencias + imagen resaltada
         return diff_coords, img2_color
-
     
