@@ -66,14 +66,24 @@ class CircleDetector:
             cluster_points = points_array[labels == label]
             
             # Calcular el círculo mínimo para este cluster
-            center, squared_radius = miniball.get_bounding_ball(cluster_points)
-            radius = np.sqrt(squared_radius)
 
-            # Añadir un poco de margen al radio (5%)
-            radius *= 1.05
-            
-            circles.append((center[0], center[1], radius))
-        
+            try:
+                center, squared_radius = miniball.get_bounding_ball(cluster_points)
+                radius = np.sqrt(squared_radius)
+
+                # Añadir un poco de margen al radio (5%)
+                radius *= 1.05
+                circles.append((center[0], center[1], radius))
+
+            except Exception as e:
+                print(f"Error al calcular el circulo: {e}")
+
+            #Si falla crea un circulo generico pequeno al rededor del punto promedio
+
+                if len(cluster_points) > 0:
+                    mean_point = np.mean(cluster_points, axis = 0)
+                    circles.append((mean_point[0],mean_point[1],5))#radio pequeno de fallback
+
         return circles
     
     def merge_overlapping_circles(self, circles, overlap_threshold=0.7):

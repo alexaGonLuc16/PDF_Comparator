@@ -1,0 +1,3 @@
+Cambios pendientes para identificar las cosas agregadas en el pdf2 que no esten en el pdf1:
+--Comparar el pdf1 con el pdf2 y marcar las diferencias detectadas, pero tambien hacerlo al reves, comparar el pdf 2 con el 1 y marcar las diferencias que se detecten y que aun no se hayan marcado.
+
