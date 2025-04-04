@@ -289,10 +289,6 @@ class MainWindow(QMainWindow):
 
         try:
             page = self.annotated_viewer.document[page_num]
-            
-            # Verificar que page es un objeto válido
-            print(f"Page type: {type(page)}")
-            print(f"Available methods: {dir(page)}")
 
             # Factor de escala para convertir de coordenadas de imagen a PDF
             scale_factor = 72 / dpi

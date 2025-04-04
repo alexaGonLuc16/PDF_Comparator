@@ -1,21 +1,75 @@
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                            QLabel, QScrollArea, QSizePolicy)
+                            QLabel, QScrollArea, QSizePolicy, QListWidget, 
+                            QListWidgetItem, QFrame)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal
 from math import sqrt
+
+class ChangesListWidget(QWidget):
+    change_selected = pyqtSignal(int, dict)  # Señal para comunicar selección de cambio
+    
+    def __init__(self, parent=None):
+        super(ChangesListWidget, self).__init__(parent)
+        self.changes_by_page = {}
+        self.init_ui()
+    
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        title_label = QLabel("Cambios Detectados")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
+        
+        self.changes_list = QListWidget(self)
+        self.changes_list.itemClicked.connect(self.on_change_clicked)
+        
+        layout.addWidget(title_label)
+        layout.addWidget(self.changes_list)
+        
+    def update_changes_list(self, page_num, changes):
+        """Actualiza la lista de cambios para la página actual"""
+        if not hasattr(self, 'changes_list') or self.changes_list is None:
+            print("Error: changes_list no está inicializado")
+            return
+
+        self.changes_list.clear()
+        self.changes_by_page[page_num] = changes
+        
+        if page_num in self.changes_by_page and self.changes_by_page[page_num]:
+            for i, change in enumerate(self.changes_by_page[page_num]):
+                item = QListWidgetItem(f"Cambio {i+1} - Página {page_num+1}")
+                self.changes_list.addItem(item)
+    
+    def on_change_clicked(self, item):
+        """Maneja el clic en un elemento de la lista de cambios"""
+        if item is None:
+            return
+            
+        item_index = self.changes_list.row(item)
+        try:
+            current_page = int(item.text().split("Página ")[1]) - 1
+            
+            if current_page in self.changes_by_page and item_index < len(self.changes_by_page[current_page]):
+                change = self.changes_by_page[current_page][item_index]
+                self.change_selected.emit(current_page, change)
+        except (ValueError, IndexError) as e:
+            print(f"Error al procesar el clic en la lista: {e}")
+
 
 class PDFViewer(QWidget):
     circle_clicked = pyqtSignal(int, dict)  # Señal para comunicar clics
 
     def __init__(self, title="PDF Viewer"):
-        super().__init__()  # No pasar argumentos aquí
-        self.title = title  # Guardar el título como atributo
+        super(PDFViewer, self).__init__()
+        self.title = title
         self.document = None
         self.current_page = 0
         self.zoom_factor = 1.0
         self.clicks_enabled = False
         self.dpi = 300
+        self.changes_list_widget = None  # Inicializar a None
         self.init_ui()
     
     def init_ui(self):
@@ -73,6 +127,68 @@ class PDFViewer(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(self.scroll_area, 1)
         layout.addLayout(nav_layout)
+        
+        # Agregamos una lista de cambios solo si este es el visor de PDF anotado
+        if "Anotado" in self.title:
+            print("Inicializando lista de cambios para el PDF Anotado")
+            self.changes_list_widget = ChangesListWidget(self)
+            self.changes_list_widget.change_selected.connect(self.navigate_to_change)
+            layout.addWidget(self.changes_list_widget)
+            layout.setStretch(1, 7)  # PDF viewer gets 70% of space
+            layout.setStretch(3, 3)  # Changes list gets 30% of space
+    
+    def has_changes_list(self):
+        """Verifica si este visor tiene lista de cambios"""
+        return self.changes_list_widget is not None
+    
+    def navigate_to_change(self, page_num, change):
+        """Navega a un cambio específico cuando se selecciona de la lista"""
+        # Cambiar a la página correspondiente si es necesario
+        if self.current_page != page_num:
+            self.current_page = page_num
+            self.update_page_info()
+            
+            # Actualizar estado de los botones
+            self.prev_button.setEnabled(self.current_page > 0)
+            self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
+        
+        # Establecer zoom al 150%
+        self.zoom_factor = 1.5
+        
+        # Renderizar la página con el nuevo zoom
+        self.render_current_page()
+        
+        # Calcular la posición del scroll para centrar el cambio
+        self.scroll_to_change(change)
+    
+    def scroll_to_change(self, change):
+        """Desplaza la vista para centrar el cambio seleccionado"""
+        if not self.document:
+            return
+            
+        # Obtener dimensiones del pixmap actual
+        if self.page_label.pixmap() is None:
+            print("Error: No hay pixmap en page_label")
+            return
+            
+        pixmap_width = self.page_label.pixmap().width()
+        pixmap_height = self.page_label.pixmap().height()
+        
+        # Calcular la posición del cambio en el pixmap con el zoom actual
+        change_x = change['x'] * self.zoom_factor
+        change_y = change['y'] * self.zoom_factor
+        
+        # Ajustar el scroll para centrar el cambio
+        h_value = max(0, int(change_x - self.scroll_area.width() / 2))
+        v_value = max(0, int(change_y - self.scroll_area.height() / 2))
+        
+        # Limitar los valores de scroll a los máximos permitidos
+        h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
+        v_value = min(v_value, self.scroll_area.verticalScrollBar().maximum())
+        
+        # Establecer los valores de scroll
+        self.scroll_area.horizontalScrollBar().setValue(h_value)
+        self.scroll_area.verticalScrollBar().setValue(v_value)
     
     def label_mouse_press_event(self, event):
         pos = event.pos()
@@ -82,7 +198,7 @@ class PDFViewer(QWidget):
         if clicked_circle:
             self.circle_clicked.emit(page_num, clicked_circle)
 
-    def set_clicks_enabled(self ,enabled):
+    def set_clicks_enabled(self, enabled):
         #habilita o desabilita la deteccion de clicks en circulos
         self.clicks_enabled = enabled
 
@@ -109,6 +225,14 @@ class PDFViewer(QWidget):
         """Actualiza la información de página actual."""
         if self.document:
             self.page_info.setText(f"Página {self.current_page + 1} de {self.document.page_count}")
+            
+            # Actualizar la lista de cambios para la página actual (solo si existe)
+            if self.has_changes_list() and hasattr(self, 'formatted_circles_by_page'):
+                if self.current_page in self.formatted_circles_by_page:
+                    changes = self.formatted_circles_by_page[self.current_page]
+                    self.changes_list_widget.update_changes_list(self.current_page, changes)
+                else:
+                    self.changes_list_widget.update_changes_list(self.current_page, [])
     
     def render_current_page(self):
         """Renderiza la página actual del PDF."""
@@ -153,7 +277,7 @@ class PDFViewer(QWidget):
 
     def modify_annotations(self, page_num, clicked_circle):
         """Modifica las anotaciones al hacer clic en un círculo."""
-        if page_num not in self.formatted_circles_by_page:
+        if not hasattr(self, 'formatted_circles_by_page') or page_num not in self.formatted_circles_by_page:
             return []
 
         updated_annotations = []
@@ -174,6 +298,11 @@ class PDFViewer(QWidget):
 
         # Guardar los cambios en la estructura de datos
         self.formatted_circles_by_page[page_num] = updated_annotations
+        
+        # Actualizar la lista de cambios si existe
+        if self.has_changes_list():
+            self.changes_list_widget.update_changes_list(page_num, updated_annotations)
+        
         return updated_annotations
     
     def detect_circle_click(self, pos):
@@ -225,7 +354,15 @@ class PDFViewer(QWidget):
             self.formatted_circles_by_page[page] = filtered_circles
             
             print(f"Página {page}: {len(circles)} círculos originales, {len(self.formatted_circles_by_page[page])} después del filtrado")
-            self.render_current_page()
+        
+        # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
+        if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
+            self.changes_list_widget.update_changes_list(
+                self.current_page, 
+                self.formatted_circles_by_page[self.current_page]
+            )
+            
+        self.render_current_page()
         
     def filter_contained_circles(self, circles):
         """

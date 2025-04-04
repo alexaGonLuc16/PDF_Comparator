@@ -1,6 +1,3 @@
-Cambios pendientes para identificar las cosas agregadas en el pdf2 que no esten en el pdf1:
---Comparar el pdf1 con el pdf2 y marcar las diferencias detectadas, pero tambien hacerlo al reves, comparar el pdf 2 con el 1 y marcar las diferencias que se detecten y que aun no se hayan marcado.
-
 Posibles features a implementar:
 --Indicar ucales fueron los cambios de elementos agregados en el esquematico y cuales fueron las partes en donde se eliminaron elementos, asi como en que partes estas se eliminaron
 
@@ -8,9 +5,11 @@ Cambios que aun no se identifican al comparar el pdf 81 con el 73 1:
 
 Pagina 17, cambio en la parte de la resistencia R10636
 
-eL MOUSE EVENT CLICK NECESITA SER DESACTIVADO  Y SOLO DETECTARSE CUANDO YA SE HAYA CONVERTIDO EL PDF Y CUANDO SE DE CLICK EN EL PDF 2, NO EN EL 1
-
 ****Parece que no identifica bien los cambios de las letras que estan colocadas de forma vertical
 
-Urgente: 
-arreglar la habilitacion de los eventos de circle clicked, pues  aun se detectan antes de que el pdf sea convertido
+Issues:
+--Ya no ejecuta el toggle individual de los circulos
+--checar si se pueden descartar los cambios del texto en el margen
+--poner icocnos checkbox de los cambios
+poner el pdf anotado en una sola ventana para poder verlo y cambiar al pdf original con un solo comando(tambien conservar la opcion de ver ambos pdf en paralelo)
+--checar si las hojas del pdf siempre tienen las mismas dimensiones para considerar como descartar los cambios marcados en el margen 
