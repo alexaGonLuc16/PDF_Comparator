@@ -26,6 +26,7 @@ class WorkerThread(QThread):
         self.eps = eps
         self.min_samples = min_samples
         self.selected_pages = selected_pages
+        self.updated_annotations = {}
 
     def run(self):
         # Inicializar componentes
@@ -55,15 +56,15 @@ class WorkerThread(QThread):
         
         total_pages = min(len(images1), len(images2))
         for i, (img1, img2) in enumerate(zip(images1, images2)):
-        #for i, (img1, img2) in self.selected_pages:
             # Comparar imágenes y obtener coordenadas de diferencias
             diff_coords,_ = image_comparator.find_differences(img1, img2)
-            print("Differences found: ", diff_coords[:5])  # Muestra solo 5 puntos para verificar
+            #print("Differences found: ", diff_coords[:5])  # Muestra solo 5 puntos para verificar
 
             # Paso 4: Agrupar diferencias en círculos
             if diff_coords:
                 circles = circle_detector.group_points_into_circles(diff_coords)
                 circles = circle_detector.merge_overlapping_circles(circles)
+                
                 
                 if circles:
                     if self.selected_pages != None:
@@ -84,6 +85,9 @@ class WorkerThread(QThread):
         
         self.progress.emit(100)
         self.finished.emit(self.output_path, circles_by_page)
+        
+        #habilitar click event para descarte de circulos
+        
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -234,7 +238,6 @@ class MainWindow(QMainWindow):
         
         # Visor original
         self.original_viewer = PDFViewer("PDF Original")
-        
         # Visor anotado
         self.annotated_viewer = PDFViewer("PDF Anotado")
         self.toggle_circles = QCheckBox("Mostrar círculos")
@@ -262,7 +265,10 @@ class MainWindow(QMainWindow):
         self.output_file = None
         self.circles_by_page = {}
         
+        #flag para habilitar circle_click event
+        self.circle_clicked_flag = False
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
+        self.annotated_viewer.set_clicks_enabled(False)#inicialmente desabilitado
 
         print("UI de MainWindow inicializada")
         
@@ -271,27 +277,53 @@ class MainWindow(QMainWindow):
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
         
         # Modificación del círculo si es necesario o actualización
-        new_annotations = self.modify_annotations(page_num, clicked_circle)
-        
+        self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle)
         # Llamar a update_annotations para reflejar cambios
-        self.update_annotations(page_num, new_annotations)
-        
-    def update_annotations(self, page_num, new_annotations):
+        self.update_annotations(page_num, self.updated_annotations)
+    
+    def update_annotations(self, page_num, new_annotations, dpi=300):
         """Actualiza las anotaciones del PDF según las modificaciones del usuario."""
         if not hasattr(self.annotated_viewer, 'document') or not self.annotated_viewer.document:
+            print("No hay un documento cargado en annotated_viewer.")
             return
 
         try:
             page = self.annotated_viewer.document[page_num]
-            for annot in page.annots():
-                if annot.type[1] == 'Circle':
-                    annot.delete()  # Elimina las anotaciones anteriores
+            
+            # Verificar que page es un objeto válido
+            print(f"Page type: {type(page)}")
+            print(f"Available methods: {dir(page)}")
 
+            # Factor de escala para convertir de coordenadas de imagen a PDF
+            scale_factor = 72 / dpi
+
+            # Eliminar anotaciones previas de tipo "Circle"
+            annot = page.first_annot
+            while annot:
+                next_annot = annot.next  # Guardar referencia antes de eliminar
+                if annot.type[1] == 'Circle':
+                    page.delete_annot(annot)  # Método correcto para eliminar anotaciones
+                annot = next_annot  # Pasar al siguiente
+
+            # Agregar nuevas anotaciones con escala ajustada
             for circle in new_annotations:
-                rect = fitz.Rect(circle['x0'], circle['y0'], circle['x1'], circle['y1'])
-                circle_annot = page.add_circle_annot(rect)
-                circle_annot.set_colors({"stroke": (1, 0, 0)})  # Rojo para diferencias
-                circle_annot.update()
+                if circle["selected"] == False:
+                    continue
+                else:
+                    x_pdf = circle['x'] * scale_factor
+                    y_pdf = circle['y'] * scale_factor
+                    radius_pdf = circle['radius'] * scale_factor
+
+                    # Crear anotación de círculo
+                    circle_annot = page.add_circle_annot(
+                        (x_pdf - radius_pdf, y_pdf - radius_pdf, x_pdf + radius_pdf, y_pdf + radius_pdf)
+                    )
+
+                    # Configurar propiedades
+                    circle_annot.set_border(width=2)
+                    circle_annot.set_colors(stroke=(0, 0, 1))  # Azul
+                    circle_annot.update(opacity=0.7)
+                    print("Anotacion agregada")
 
             # Refrescar visor para mostrar actualizaciones
             self.annotated_viewer.reload_page()
@@ -446,6 +478,9 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
     
     def comparison_finished(self, output_path, circles_by_page):
+        # Habilitar circle_clicked event
+        self.circle_clicked_flag = True
+        self.annotated_viewer.set_clicks_enabled(True)#habilitar los clicks
         # Habilitar botones
         self.compare_button.setEnabled(True)
         self.pdf1_button.setEnabled(True)
@@ -459,8 +494,14 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.load_pdf(output_path)
         
         # Actualizar visibilidad de círculos
-        self.toggle_circle_visibility(self.toggle_circles.isChecked())
         self.annotated_viewer.set_circles(circles_by_page)
+        # IMPORTANTE: Aplicar inmediatamente el filtrado a las anotaciones visibles
+        for page_num in self.annotated_viewer.formatted_circles_by_page:
+            self.update_annotations(page_num, self.annotated_viewer.formatted_circles_by_page[page_num])
+        
+        # Actualizar visibilidad de círculos
+        self.toggle_circle_visibility(self.toggle_circles.isChecked())
+        
     
     def toggle_circle_visibility(self, state):
         if hasattr(self.annotated_viewer, 'document') and self.annotated_viewer.document:

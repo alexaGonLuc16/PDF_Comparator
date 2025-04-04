@@ -44,10 +44,10 @@ class ImageComparator:
         _, bin1 = cv2.threshold(img1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         _, bin2 = cv2.threshold(img2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # Diferencia absoluta
+        # Diferencia absoluta/pixeles que cambian entre ambas imagenes
         diff = cv2.absdiff(bin1, bin2)
         
-        # Operaciones morfológicas para mejorar la detección
+        # Operaciones morfológicas para mejorar la detección(limpiar ruido)
         diff_processed = cv2.morphologyEx(diff, cv2.MORPH_OPEN, self.kernel)
         diff_processed = cv2.dilate(diff_processed, self.kernel, iterations=1)
         

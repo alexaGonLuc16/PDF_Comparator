@@ -11,3 +11,6 @@ Pagina 17, cambio en la parte de la resistencia R10636
 eL MOUSE EVENT CLICK NECESITA SER DESACTIVADO  Y SOLO DETECTARSE CUANDO YA SE HAYA CONVERTIDO EL PDF Y CUANDO SE DE CLICK EN EL PDF 2, NO EN EL 1
 
 ****Parece que no identifica bien los cambios de las letras que estan colocadas de forma vertical
+
+Urgente: 
+arreglar la habilitacion de los eventos de circle clicked, pues  aun se detectan antes de que el pdf sea convertido
