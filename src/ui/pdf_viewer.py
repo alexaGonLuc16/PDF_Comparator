@@ -2,7 +2,7 @@ import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
                             QListWidgetItem, QFrame)
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal
 from math import sqrt
 
@@ -18,14 +18,14 @@ class ChangesListWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         
-        title_label = QLabel("Cambios Detectados")
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
+        self.title_label = QLabel("Cambios Detectados")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
         
         self.changes_list = QListWidget(self)
         self.changes_list.itemClicked.connect(self.on_change_clicked)
         
-        layout.addWidget(title_label)
+        layout.addWidget(self.title_label)
         layout.addWidget(self.changes_list)
         
     def update_changes_list(self, page_num, changes):
@@ -70,16 +70,20 @@ class PDFViewer(QWidget):
         self.clicks_enabled = False
         self.dpi = 300
         self.changes_list_widget = None  # Inicializar a None
+        self.original_document = None # para almacenal el pdf original
+        self.showing_original = False # para mostrar el pdf anotado
+        self.formatted_circles_page = {}
         self.init_ui()
+
     
     def init_ui(self):
         # Layout principal
         layout = QVBoxLayout(self)
         
         # Título
-        title_label = QLabel(self.title)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        self.title_label = QLabel(self.title)
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 14pt; font-weight: bold;")
         
         # Área de visualización del PDF
         self.scroll_area = QScrollArea()
@@ -92,7 +96,7 @@ class PDFViewer(QWidget):
         self.page_label.setMouseTracking(True)  # Habilitar seguimiento del mouse
         self.page_label.mousePressEvent = self.label_mouse_press_event  # Sobrescribir evento
         self.scroll_area.setWidget(self.page_label)
-        
+
         # Controles de navegación
         nav_layout = QHBoxLayout()
         
@@ -124,12 +128,12 @@ class PDFViewer(QWidget):
         nav_layout.addWidget(self.zoom_reset_button)
         nav_layout.addWidget(self.zoom_in_button)
         
-        layout.addWidget(title_label)
+        layout.addWidget(self.title_label)
         layout.addWidget(self.scroll_area, 1)
         layout.addLayout(nav_layout)
         
         # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "Anotado" in self.title:
+        if "" in self.title:
             print("Inicializando lista de cambios para el PDF Anotado")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
@@ -137,6 +141,84 @@ class PDFViewer(QWidget):
             layout.setStretch(1, 7)  # PDF viewer gets 70% of space
             layout.setStretch(3, 3)  # Changes list gets 30% of space
     
+    def keyPressEvent(self, event):
+        """Captura eventos de tecla presionada"""
+        # Detectar si se presiona la tecla Q
+        if event.key() == Qt.Key_Q and not event.isAutoRepeat():
+            print("Tecla Q presionada - mostrando PDF original")
+            self.show_pdf(is_original=True)
+            return
+        
+        # Dejar que el evento siga su procesamiento normal para otras teclas
+        super(PDFViewer, self).keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        """Captura eventos de tecla liberada"""
+        # Detectar si se suelta la tecla Q
+        if event.key() == Qt.Key_Q and not event.isAutoRepeat():
+            print("Tecla Q liberada - volviendo a PDF anotado")
+            self.show_pdf(is_original=False)
+            return
+        
+        # Dejar que el evento siga su procesamiento normal para otras teclas
+        super(PDFViewer, self).keyReleaseEvent(event)
+
+    def show_pdf(self, is_original=False):
+        """Muestra el PDF original o anotado según el parámetro"""
+        if not self.document or (is_original and not self.original_document):
+            print("No hay documentos cargados para mostrar")
+            return
+            
+        self.showing_original = is_original
+        
+        # Cambiar el título según el PDF que se está mostrando
+        if hasattr(self, 'title_label'):
+            if is_original:
+                self.title_label.setText("PDF Original")
+            else:
+                self.title_label.setText("PDF Anotado")
+
+        # Guardar la posición actual del scroll
+        h_value = self.scroll_area.horizontalScrollBar().value()
+        v_value = self.scroll_area.verticalScrollBar().value()
+        
+        # Renderizar la página correspondiente
+        self.render_current_page()
+        
+        # Actualizar estado de los botones de navegación
+        doc_to_check = self.original_document if is_original else self.document
+        self.prev_button.setEnabled(self.current_page > 0)
+        self.next_button.setEnabled(self.current_page < doc_to_check.page_count - 1)
+        
+        # Restaurar la posición del scroll
+        self.scroll_area.horizontalScrollBar().setValue(h_value)
+        self.scroll_area.verticalScrollBar().setValue(v_value)
+
+    def load_pdf(self, pdf_path, original_pdf_path=None):
+        """Carga un archivo PDF en el visor."""
+        if pdf_path:
+            # Cerrar documento previo si existe
+            if self.document:
+                self.document.close()
+            
+            # Abrir nuevo documento
+            self.document = fitz.open(pdf_path)
+            self.current_page = 0
+            
+            #Cargar PDF original
+            if original_pdf_path:
+                if self.original_document:
+                    self.original_document.close()
+                self.original_document = fitz.open(original_pdf_path)
+
+            # Actualizar interfaz
+            self.update_page_info()
+            self.render_current_page()
+            
+            # Habilitar/deshabilitar botones
+            self.prev_button.setEnabled(False)
+            self.next_button.setEnabled(self.document.page_count > 1 )
+
     def has_changes_list(self):
         """Verifica si este visor tiene lista de cambios"""
         return self.changes_list_widget is not None
@@ -201,25 +283,6 @@ class PDFViewer(QWidget):
     def set_clicks_enabled(self, enabled):
         #habilita o desabilita la deteccion de clicks en circulos
         self.clicks_enabled = enabled
-
-    def load_pdf(self, pdf_path):
-        """Carga un archivo PDF en el visor."""
-        if pdf_path:
-            # Cerrar documento previo si existe
-            if self.document:
-                self.document.close()
-            
-            # Abrir nuevo documento
-            self.document = fitz.open(pdf_path)
-            self.current_page = 0
-            
-            # Actualizar interfaz
-            self.update_page_info()
-            self.render_current_page()
-            
-            # Habilitar/deshabilitar botones
-            self.prev_button.setEnabled(False)
-            self.next_button.setEnabled(self.document.page_count > 1)
     
     def update_page_info(self):
         """Actualiza la información de página actual."""
@@ -237,25 +300,44 @@ class PDFViewer(QWidget):
     def render_current_page(self):
         """Renderiza la página actual del PDF."""
         if not self.document:
+            print("Error: No hay documento principal para renderizar")
             return
         
+        # Determinar qué documento renderizar
+        doc_to_render = self.original_document if self.showing_original else self.document
+        
+        # Verificar que el documento a renderizar existe
+        if not doc_to_render:
+            print("Error: No hay documento disponible para renderizar")
+            return
+        
+        print(f"Renderizando página {self.current_page} de documento: {doc_to_render}")
+        
         # Obtener página actual
-        page = self.document[self.current_page]
+        page = doc_to_render[self.current_page]
         
         # Aplicar zoom
         matrix = fitz.Matrix(self.zoom_factor, self.zoom_factor)
         pix = page.get_pixmap(matrix=matrix)
+        
+        print(f"Pixmap creado: {pix.width}x{pix.height}")
         
         # Convertir a QImage/QPixmap
         img_data = QByteArray(pix.samples)
         qimg = QImage(img_data, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(qimg)
         
+        print(f"QPixmap creado: {pixmap.width()}x{pixmap.height()}")
+        
         # Mostrar en el label
         self.page_label.setPixmap(pixmap)
         self.page_label.resize(pixmap.size())
 
+
     def mousePressEvent(self, event):
+        if not self.showing_original:
+            return
+
         # Obtener las coordenadas relativas al PDFViewer
         viewer_pos = event.pos()
         print("Mouse Press event")

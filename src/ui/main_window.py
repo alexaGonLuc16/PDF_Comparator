@@ -244,8 +244,6 @@ class MainWindow(QMainWindow):
         self.toggle_circles.setChecked(True)
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
         
-        view_layout.addWidget(self.original_viewer, 1)
-        
         annotated_container = QWidget()
         annotated_layout = QVBoxLayout(annotated_container)
         annotated_layout.addWidget(self.annotated_viewer)
@@ -395,6 +393,8 @@ class MainWindow(QMainWindow):
         if file_path:
             self.pdf1_file = file_path
             self.pdf1_path.setText(os.path.basename(file_path))
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            output_dir = os.path.join(base_dir, 'data', 'output')
             self.original_viewer.load_pdf(file_path)
             self.update_compare_button()
     
@@ -474,6 +474,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
     
     def comparison_finished(self, output_path, circles_by_page):
+        
         # Habilitar circle_clicked event
         self.circle_clicked_flag = True
         self.annotated_viewer.set_clicks_enabled(True)#habilitar los clicks
@@ -487,7 +488,7 @@ class MainWindow(QMainWindow):
         self.circles_by_page = circles_by_page
         
         # Cargar PDF anotado
-        self.annotated_viewer.load_pdf(output_path)
+        self.annotated_viewer.load_pdf(output_path,self.pdf1_file)
         
         # Actualizar visibilidad de círculos
         self.annotated_viewer.set_circles(circles_by_page)

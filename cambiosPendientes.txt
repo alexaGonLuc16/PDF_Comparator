@@ -13,3 +13,10 @@ Issues:
 --poner icocnos checkbox de los cambios
 poner el pdf anotado en una sola ventana para poder verlo y cambiar al pdf original con un solo comando(tambien conservar la opcion de ver ambos pdf en paralelo)
 --checar si las hojas del pdf siempre tienen las mismas dimensiones para considerar como descartar los cambios marcados en el margen 
+
+para martes 8 de abril:
+--el cambio de pdf no funciona si se hace despues de hacer click en un cambio
+--listar las paginas que cambiaron junto con los cambios
+--ajustar layout de componentes
+--quitar el menu de seleccion de archivos para que haya mas espacio
+--implementar checkboxes de toggle de cambios para el usuario
