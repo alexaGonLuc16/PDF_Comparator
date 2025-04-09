@@ -20,3 +20,7 @@ para martes 8 de abril:
 --ajustar layout de componentes
 --quitar el menu de seleccion de archivos para que haya mas espacio
 --implementar checkboxes de toggle de cambios para el usuario
+
+Excepciones de funcionamiento: 
+-- el toggle individual de los circulos solo funciona cuando el zoom esta en 100%
+-- el toggle completo solo funciona cuando se hace click en el pdf

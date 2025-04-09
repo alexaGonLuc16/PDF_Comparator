@@ -1,13 +1,13 @@
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
-                            QListWidgetItem, QFrame)
+                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem)
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal
 from math import sqrt
 
 class ChangesListWidget(QWidget):
-    change_selected = pyqtSignal(int, dict)  # Señal para comunicar selección de cambio
+    change_selected = pyqtSignal(int, dict, bool)  # Página, cambio, activado
     
     def __init__(self, parent=None):
         super(ChangesListWidget, self).__init__(parent)
@@ -18,45 +18,80 @@ class ChangesListWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         
-        self.title_label = QLabel("Cambios Detectados")
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
+        # Título
+        title_label = QLabel("Cambios Detectados")
+        title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
         
-        self.changes_list = QListWidget(self)
-        self.changes_list.itemClicked.connect(self.on_change_clicked)
+        # Árbol para mostrar cambios de forma jerárquica
+        self.changes_tree = QTreeWidget(self)
+        self.changes_tree.setHeaderLabels(["Página/Cambio", "Activado"])
+        self.changes_tree.setColumnWidth(0, 150)
+        self.changes_tree.itemClicked.connect(self.on_item_clicked)
         
-        layout.addWidget(self.title_label)
-        layout.addWidget(self.changes_list)
-        
-    def update_changes_list(self, page_num, changes):
-        """Actualiza la lista de cambios para la página actual"""
-        if not hasattr(self, 'changes_list') or self.changes_list is None:
-            print("Error: changes_list no está inicializado")
-            return
-
-        self.changes_list.clear()
-        self.changes_by_page[page_num] = changes
-        
-        if page_num in self.changes_by_page and self.changes_by_page[page_num]:
-            for i, change in enumerate(self.changes_by_page[page_num]):
-                item = QListWidgetItem(f"Cambio {i+1} - Página {page_num+1}")
-                self.changes_list.addItem(item)
+        layout.addWidget(title_label)
+        layout.addWidget(self.changes_tree)
     
-    def on_change_clicked(self, item):
-        """Maneja el clic en un elemento de la lista de cambios"""
-        if item is None:
+    def update_changes_list(self, formatted_circles_by_page):
+        """Actualiza la lista completa de cambios por página"""
+        print("Update changes list ------------------------------->")
+        if not hasattr(self, 'changes_tree') or self.changes_tree is None:
+            print("Error: changes_tree no está inicializado")
+            return
+        print("Si changes ------------------------------->")
+        self.changes_tree.clear()
+        self.changes_by_page = formatted_circles_by_page
+        print("changes by page",self.changes_by_page)
+        
+        # Crear un elemento en el árbol para cada página con cambios
+        for page_num, changes in sorted(formatted_circles_by_page.items()):
+            print("Si changes ------------------------------->")
+            if changes:
+                print("No changes ------------------------------->")
+                page_item = QTreeWidgetItem(self.changes_tree)
+                page_item.setText(0, f"Página {page_num + 1} ({len(changes)} cambios)")
+                page_item.setData(0, 256 , {"type": "page", "page": page_num})
+                
+                # Crear sub-elementos para cada cambio en la página
+                for i, change in enumerate(changes):
+                    change_item = QTreeWidgetItem(page_item)
+                    change_item.setText(0, f"Cambio {i+1}")
+                    change_item.setData(0, 256, {"type": "change", "page": page_num, "index": i})
+                    
+                    print("tipo change", type(change))
+                    print("contenido de change", change)
+                    # Agregar checkbox para activar/desactivar
+                    change_item.setCheckState(1, 2 if change.get("selected", True) else 0)
+        
+        # Expandir el primer nivel
+        for i in range(self.changes_tree.topLevelItemCount()):
+            self.changes_tree.topLevelItem(i).setExpanded(True)
+    
+    def on_item_clicked(self, item, column):
+        """Maneja el clic en un elemento del árbol"""
+        data = item.data(0, 256)
+        
+        if not data:
             return
             
-        item_index = self.changes_list.row(item)
-        try:
-            current_page = int(item.text().split("Página ")[1]) - 1
+        if data["type"] == "change":
+            page_num = data["page"]
+            change_idx = data["index"]
             
-            if current_page in self.changes_by_page and item_index < len(self.changes_by_page[current_page]):
-                change = self.changes_by_page[current_page][item_index]
-                self.change_selected.emit(current_page, change)
-        except (ValueError, IndexError) as e:
-            print(f"Error al procesar el clic en la lista: {e}")
-
+            if page_num in self.changes_by_page and change_idx < len(self.changes_by_page[page_num]):
+                change = self.changes_by_page[page_num][change_idx]
+                
+                # Si se hizo clic en la columna del checkbox, actualizar el estado
+                if column == 1:
+                    is_checked = item.checkState(1) == 2
+                    change["selected"] = is_checked
+                    self.change_selected.emit(page_num, change, is_checked)
+                else:
+                    # Si se hizo clic en el nombre, navegar al cambio
+                    self.change_selected.emit(page_num, change, change.get("selected", True))
+        
+        # Si se hace clic en un elemento de página, expandir/contraer
+        elif data["type"] == "page" and column == 0:
+            item.setExpanded(not item.isExpanded())
 
 class PDFViewer(QWidget):
     circle_clicked = pyqtSignal(int, dict)  # Señal para comunicar clics
@@ -133,13 +168,11 @@ class PDFViewer(QWidget):
         layout.addLayout(nav_layout)
         
         # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "" in self.title:
+        if "PDF Anotado" in self.title:
             print("Inicializando lista de cambios para el PDF Anotado")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
             layout.addWidget(self.changes_list_widget)
-            layout.setStretch(1, 7)  # PDF viewer gets 70% of space
-            layout.setStretch(3, 3)  # Changes list gets 30% of space
     
     def keyPressEvent(self, event):
         """Captura eventos de tecla presionada"""
@@ -293,9 +326,10 @@ class PDFViewer(QWidget):
             if self.has_changes_list() and hasattr(self, 'formatted_circles_by_page'):
                 if self.current_page in self.formatted_circles_by_page:
                     changes = self.formatted_circles_by_page[self.current_page]
-                    self.changes_list_widget.update_changes_list(self.current_page, changes)
+                    print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
+                    self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
                 else:
-                    self.changes_list_widget.update_changes_list(self.current_page, [])
+                    self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
     
     def render_current_page(self):
         """Renderiza la página actual del PDF."""
@@ -357,33 +391,32 @@ class PDFViewer(QWidget):
         if clicked_circle:
             self.circle_clicked.emit(page_num, clicked_circle)
 
-    def modify_annotations(self, page_num, clicked_circle):
+    def modify_annotations(self, page_num, clicked_circle, is_checked=None):
         """Modifica las anotaciones al hacer clic en un círculo."""
         if not hasattr(self, 'formatted_circles_by_page') or page_num not in self.formatted_circles_by_page:
             return []
 
         updated_annotations = []
 
-        print(page_num)
-
         for circle in self.formatted_circles_by_page[page_num]:
             if circle == clicked_circle:
-                # Modificar el círculo si es necesario (ejemplo: marcarlo como seleccionado)
+                # Modificar el círculo
                 modified_circle = circle.copy()
-                modified_circle["selected"] = not circle.get("selected", True)  # Alternar estado
+                
+                # Si se proporciona un valor explícito para is_checked, usarlo
+                if is_checked is not None:
+                    modified_circle["selected"] = is_checked
+                else:
+                    # De lo contrario, alternar el estado actual
+                    modified_circle["selected"] = not circle.get("selected", True)
+                    
                 updated_annotations.append(modified_circle)
-                print("--Selected",modified_circle["selected"])
+                print(f"Círculo en página {page_num} - Selected: {modified_circle['selected']}")
             else:
                 updated_annotations.append(circle)
-                #circle["selected"] = True 
-                print("Selected", circle["selected"])
 
         # Guardar los cambios en la estructura de datos
         self.formatted_circles_by_page[page_num] = updated_annotations
-        
-        # Actualizar la lista de cambios si existe
-        if self.has_changes_list():
-            self.changes_list_widget.update_changes_list(page_num, updated_annotations)
         
         return updated_annotations
     
@@ -439,10 +472,8 @@ class PDFViewer(QWidget):
         
         # Actualizar la lista de cambios si estamos en una página con cambios y si existe la lista
         if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
-            self.changes_list_widget.update_changes_list(
-                self.current_page, 
-                self.formatted_circles_by_page[self.current_page]
-            )
+            print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
+            self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
             
         self.render_current_page()
         

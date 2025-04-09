@@ -10,7 +10,7 @@ from src.pdf_processor import PDFProcessor
 from src.image_comparator import ImageComparator
 from src.circle_detector import CircleDetector
 from src.pdf_annotator import PDFAnnotator
-from src.ui.pdf_viewer import PDFViewer
+from src.ui.pdf_viewer import PDFViewer, ChangesListWidget
 
 class WorkerThread(QThread):
     progress = pyqtSignal(int)
@@ -239,7 +239,19 @@ class MainWindow(QMainWindow):
         # Visor original
         self.original_viewer = PDFViewer("PDF Original")
         # Visor anotado
+        # Modificar el view_layout para incluir la lista de cambios
+
+        view_layout = QHBoxLayout()
+        
+        # Visor anotado
         self.annotated_viewer = PDFViewer("PDF Anotado")
+        
+        view_layout.addWidget(self.annotated_viewer, 3)  # Visor ocupa más espacio
+        
+        # Añadir layouts al layout principal
+        main_layout.addLayout(config_layout, 1)
+        main_layout.addLayout(view_layout, 4)
+
         self.toggle_circles = QCheckBox("Mostrar círculos")
         self.toggle_circles.setChecked(True)
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
@@ -269,13 +281,14 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.set_clicks_enabled(False)#inicialmente desabilitado
 
         print("UI de MainWindow inicializada")
-        
+
     def handle_circle_click(self, page_num, clicked_circle):
         """Maneja clics en círculos para actualizar anotaciones."""
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
         
         # Modificación del círculo si es necesario o actualización
         self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle)
+        
         # Llamar a update_annotations para reflejar cambios
         self.update_annotations(page_num, self.updated_annotations)
     
@@ -317,7 +330,6 @@ class MainWindow(QMainWindow):
                     circle_annot.set_border(width=2)
                     circle_annot.set_colors(stroke=(0, 0, 1))  # Azul
                     circle_annot.update(opacity=0.7)
-                    print("Anotacion agregada")
 
             # Refrescar visor para mostrar actualizaciones
             self.annotated_viewer.reload_page()
@@ -492,13 +504,13 @@ class MainWindow(QMainWindow):
         
         # Actualizar visibilidad de círculos
         self.annotated_viewer.set_circles(circles_by_page)
+
         # IMPORTANTE: Aplicar inmediatamente el filtrado a las anotaciones visibles
         for page_num in self.annotated_viewer.formatted_circles_by_page:
             self.update_annotations(page_num, self.annotated_viewer.formatted_circles_by_page[page_num])
         
         # Actualizar visibilidad de círculos
         self.toggle_circle_visibility(self.toggle_circles.isChecked())
-        
     
     def toggle_circle_visibility(self, state):
         if hasattr(self.annotated_viewer, 'document') and self.annotated_viewer.document:
