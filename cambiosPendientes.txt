@@ -3,7 +3,7 @@ Posibles features a implementar:
 
 Cambios que aun no se identifican al comparar el pdf 81 con el 73 1:
 
-Pagina 17, cambio en la parte de la resistencia R10636
+Pagina 17, cambio en la parte de la resistencia R10636: es un error que posiblemente surge porque el error en la matriz obtenida de la imagen
 
 ****Parece que no identifica bien los cambios de las letras que estan colocadas de forma vertical
 
@@ -24,3 +24,7 @@ para martes 8 de abril:
 Excepciones de funcionamiento: 
 -- el toggle individual de los circulos solo funciona cuando el zoom esta en 100%
 -- el toggle completo solo funciona cuando se hace click en el pdf
+
+Pendientes:
+--ajustar zoom en el que se muestra cada cambio al ir navegando
+--agregar la funcionalidad a los checkbox para mostrar y ocultar los cambios

@@ -214,7 +214,6 @@ class MainWindow(QMainWindow):
 
         param_layout.addLayout(page_select_layout)
 
-
         # Botones de acción
         action_group = QGroupBox("Acciones")
         action_layout = QVBoxLayout(action_group)
@@ -235,33 +234,42 @@ class MainWindow(QMainWindow):
         
         # Área de visualización
         view_layout = QHBoxLayout()
-        
         # Visor original
         self.original_viewer = PDFViewer("PDF Original")
         # Visor anotado
         # Modificar el view_layout para incluir la lista de cambios
 
-        view_layout = QHBoxLayout()
-        
-        # Visor anotado
+        # Visor anotado (izquierda)
         self.annotated_viewer = PDFViewer("PDF Anotado")
         
-        view_layout.addWidget(self.annotated_viewer, 3)  # Visor ocupa más espacio
+        # Contenedor del visor anotado con el checkbox de círculos
+        annotated_container = QWidget()
+        annotated_layout = QVBoxLayout(annotated_container)
+        annotated_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Añadir layouts al layout principal
-        main_layout.addLayout(config_layout, 1)
-        main_layout.addLayout(view_layout, 4)
-
+        annotated_layout.addWidget(self.annotated_viewer)
+        
         self.toggle_circles = QCheckBox("Mostrar círculos")
         self.toggle_circles.setChecked(True)
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
         
-        annotated_container = QWidget()
-        annotated_layout = QVBoxLayout(annotated_container)
-        annotated_layout.addWidget(self.annotated_viewer)
         annotated_layout.addWidget(self.toggle_circles)
         
-        view_layout.addWidget(annotated_container, 1)
+        # Contenedor para la lista de cambios (derecha)
+        self.changes_container = QWidget()
+        changes_layout = QVBoxLayout(self.changes_container)
+        changes_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Título de la lista de cambios
+        changes_title = QLabel("Cambios Detectados")
+        changes_title.setAlignment(Qt.AlignCenter)
+        changes_title.setStyleSheet("font-size: 11pt; font-weight: bold;")
+        
+        changes_layout.addWidget(changes_title)
+        
+        # Configurar la vista
+        view_layout.addWidget(annotated_container, 5)  # PDF visor ocupa 5/6 de la pantalla
+        view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
         
         # Añadir layouts al layout principal
         main_layout.addLayout(config_layout, 1)
@@ -275,13 +283,13 @@ class MainWindow(QMainWindow):
         self.output_file = None
         self.circles_by_page = {}
         
-        #flag para habilitar circle_click event
+        # Flag para habilitar circle_click event
         self.circle_clicked_flag = False
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
-        self.annotated_viewer.set_clicks_enabled(False)#inicialmente desabilitado
+        self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
 
         print("UI de MainWindow inicializada")
-
+        
     def handle_circle_click(self, page_num, clicked_circle):
         """Maneja clics en círculos para actualizar anotaciones."""
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
@@ -486,10 +494,10 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
     
     def comparison_finished(self, output_path, circles_by_page):
-        
         # Habilitar circle_clicked event
         self.circle_clicked_flag = True
-        self.annotated_viewer.set_clicks_enabled(True)#habilitar los clicks
+        self.annotated_viewer.set_clicks_enabled(True)  # habilitar los clicks
+        
         # Habilitar botones
         self.compare_button.setEnabled(True)
         self.pdf1_button.setEnabled(True)
@@ -500,17 +508,39 @@ class MainWindow(QMainWindow):
         self.circles_by_page = circles_by_page
         
         # Cargar PDF anotado
-        self.annotated_viewer.load_pdf(output_path,self.pdf1_file)
+        self.annotated_viewer.load_pdf(output_path, self.pdf1_file)
         
         # Actualizar visibilidad de círculos
         self.annotated_viewer.set_circles(circles_by_page)
-
+        
         # IMPORTANTE: Aplicar inmediatamente el filtrado a las anotaciones visibles
         for page_num in self.annotated_viewer.formatted_circles_by_page:
             self.update_annotations(page_num, self.annotated_viewer.formatted_circles_by_page[page_num])
         
         # Actualizar visibilidad de círculos
         self.toggle_circle_visibility(self.toggle_circles.isChecked())
+        
+        # Mostrar la lista de cambios en el contenedor derecho
+        if hasattr(self.annotated_viewer, 'changes_list_widget') and self.annotated_viewer.changes_list_widget:
+            # Obtener la lista de cambios del visor
+            changes_widget = self.annotated_viewer.changes_list_widget
+            
+            # Limpiar el layout del contenedor de cambios
+            changes_layout = self.changes_container.layout()
+            while changes_layout.count() > 1:  # Mantener solo el título
+                item = changes_layout.itemAt(changes_layout.count() - 1)
+                widget = item.widget()
+                if widget:
+                    changes_layout.removeWidget(widget)
+                    widget.setParent(None)
+            
+            # Añadir el widget de cambios al contenedor
+            changes_layout.addWidget(changes_widget)
+            
+            # Asegurarse de que el widget sea visible
+            changes_widget.setVisible(True)
+            self.changes_container.setVisible(True)
+
     
     def toggle_circle_visibility(self, state):
         if hasattr(self.annotated_viewer, 'document') and self.annotated_viewer.document:

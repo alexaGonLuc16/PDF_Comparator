@@ -172,7 +172,7 @@ class PDFViewer(QWidget):
             print("Inicializando lista de cambios para el PDF Anotado")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
-            layout.addWidget(self.changes_list_widget)
+            #layout.addWidget(self.changes_list_widget)
     
     def keyPressEvent(self, event):
         """Captura eventos de tecla presionada"""
