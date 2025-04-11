@@ -173,6 +173,7 @@ class PDFViewer(QWidget):
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
             #layout.addWidget(self.changes_list_widget)
+            
     
     def keyPressEvent(self, event):
         """Captura eventos de tecla presionada"""
@@ -258,6 +259,7 @@ class PDFViewer(QWidget):
     
     def navigate_to_change(self, page_num, change):
         """Navega a un cambio específico cuando se selecciona de la lista"""
+        print("Navegando a un cambio especifico ----",change)
         # Cambiar a la página correspondiente si es necesario
         if self.current_page != page_num:
             self.current_page = page_num
@@ -269,7 +271,8 @@ class PDFViewer(QWidget):
         
         # Establecer zoom al 150%
         self.zoom_factor = 1.5
-        
+        #self.zoom_factor = 2.0
+
         # Renderizar la página con el nuevo zoom
         self.render_current_page()
         
@@ -277,6 +280,11 @@ class PDFViewer(QWidget):
         self.scroll_to_change(change)
     
     def scroll_to_change(self, change):
+
+        dpi_scale = self.dpi / 72.0  # Escala por DPI (72 es el valor base)
+        zoom_scale = self.zoom_factor
+        total_scale = dpi_scale / zoom_scale
+
         """Desplaza la vista para centrar el cambio seleccionado"""
         if not self.document:
             return
@@ -289,13 +297,31 @@ class PDFViewer(QWidget):
         pixmap_width = self.page_label.pixmap().width()
         pixmap_height = self.page_label.pixmap().height()
         
+        #imprimir los cambios con zoom de 100
+        print("Coordenadas del cambio en x: ", change['x']/total_scale)
+        print("Coordenadas dle cambio en y: ", change['y']/total_scale)
+        print("zoom de 100")
+
         # Calcular la posición del cambio en el pixmap con el zoom actual
-        change_x = change['x'] * self.zoom_factor
-        change_y = change['y'] * self.zoom_factor
+        change_x = (change['x'] * self.zoom_factor)/total_scale
+        change_y = (change['y'] * self.zoom_factor)/total_scal
+        # 
+        # Calcular la posición del cambio en el pixmap con el zoom actual
+        #change_x = (change['x'])/total_scale
+        #change_y = (change['y'])/total_scale
+
+        #imprimir los cambios con zoom de 150
+        print("zoom de 150")
+        print("Coordenadas del cambio en x: ", change_x)
+        print("Coordenadas dle cambio en y: ", change_y)
         
         # Ajustar el scroll para centrar el cambio
-        h_value = max(0, int(change_x - self.scroll_area.width() / 2))
-        v_value = max(0, int(change_y - self.scroll_area.height() / 2))
+        h_value = max(0, int(change_x - self.scroll_area.width()))
+        v_value = max(0, int(change_y - self.scroll_area.height()))
+
+        print("Scroll")
+        print("en x: ", h_value)
+        print("en y: ", v_value)
         
         # Limitar los valores de scroll a los máximos permitidos
         h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
@@ -432,6 +458,7 @@ class PDFViewer(QWidget):
         for circle in self.formatted_circles_by_page[self.current_page]:
             scaled_x = pos.x() * total_scale
             scaled_y = pos.y() * total_scale
+            print("circulo en x", pos.x()," - circulo en y", pos.y())
             print("Scaled x", scaled_x," - Scaled y", scaled_y)
 
             scaled_radius = circle['radius']
