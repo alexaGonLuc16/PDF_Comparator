@@ -418,8 +418,8 @@ class PDFViewer(QWidget):
         print("en y: ", v_scroll)
 
         # Ajustar el scroll para centrar el cambio
-        h_value = max(0, int(h_scroll*scroll_x))
-        v_value = max(0, int(v_scroll*scroll_y))
+        h_value = max(0, int(h_scroll*scroll_x-self.width()/2))
+        v_value = max(0, int(v_scroll*scroll_y-self.height()/2))
 
         print("Scroll")
         print("en x: ", h_value)
