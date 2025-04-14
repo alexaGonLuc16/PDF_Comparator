@@ -1,9 +1,9 @@
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QScrollArea, QSizePolicy, QListWidget, 
-                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem)
+                            QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip)
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
-from PyQt5.QtCore import Qt, QByteArray, pyqtSignal
+from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent
 from math import sqrt
 
 class ChangesListWidget(QWidget):
@@ -12,6 +12,7 @@ class ChangesListWidget(QWidget):
     def __init__(self, parent=None):
         super(ChangesListWidget, self).__init__(parent)
         self.changes_by_page = {}
+        self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.init_ui()
     
     def init_ui(self):
@@ -37,16 +38,13 @@ class ChangesListWidget(QWidget):
         if not hasattr(self, 'changes_tree') or self.changes_tree is None:
             print("Error: changes_tree no está inicializado")
             return
-        print("Si changes ------------------------------->")
+
         self.changes_tree.clear()
         self.changes_by_page = formatted_circles_by_page
-        print("changes by page",self.changes_by_page)
         
         # Crear un elemento en el árbol para cada página con cambios
         for page_num, changes in sorted(formatted_circles_by_page.items()):
-            print("Si changes ------------------------------->")
             if changes:
-                print("No changes ------------------------------->")
                 page_item = QTreeWidgetItem(self.changes_tree)
                 page_item.setText(0, f"Página {page_num + 1} ({len(changes)} cambios)")
                 page_item.setData(0, 256 , {"type": "page", "page": page_num})
@@ -57,8 +55,6 @@ class ChangesListWidget(QWidget):
                     change_item.setText(0, f"Cambio {i+1}")
                     change_item.setData(0, 256, {"type": "change", "page": page_num, "index": i})
                     
-                    print("tipo change", type(change))
-                    print("contenido de change", change)
                     # Agregar checkbox para activar/desactivar
                     change_item.setCheckState(1, 2 if change.get("selected", True) else 0)
         
@@ -109,6 +105,8 @@ class PDFViewer(QWidget):
         self.showing_original = False # para mostrar el pdf anotado
         self.formatted_circles_page = {}
         self.init_ui()
+        self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
+        self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
 
     
     def init_ui(self):
@@ -130,6 +128,7 @@ class PDFViewer(QWidget):
         self.page_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.page_label.setMouseTracking(True)  # Habilitar seguimiento del mouse
         self.page_label.mousePressEvent = self.label_mouse_press_event  # Sobrescribir evento
+        self.page_label.installEventFilter(self)  # Instalar filtro de eventos
         self.scroll_area.setWidget(self.page_label)
 
         # Controles de navegación
@@ -174,7 +173,81 @@ class PDFViewer(QWidget):
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
             #layout.addWidget(self.changes_list_widget)
             
+
+    def eventFilter(self, obj, event):
+        """Filtro de eventos para capturar eventos del mouse en el QLabel"""
+        
+        if obj == self.page_label and event.type() == QEvent.MouseMove:
+            # Obtener posición del mouse relativa al label
+            mouse_pos = event.pos()
+
+            # Verificar si el documento está cargado
+            if hasattr(self, 'document') and self.document:
+                # Si tenemos un documento, mostrar información de la página
+                tooltip_text = f"Página {self.current_page + 1} de {self.document.page_count}"
+                
+                # Si tenemos círculos en la página actual, verificar si el cursor está sobre alguno
+                if hasattr(self, 'formatted_circles_by_page') and self.current_page in self.formatted_circles_by_page:
+                    # Convertir coordenadas del mouse a coordenadas del documento
+                    dpi_scale = self.dpi / 72
+                    zoom_scale = self.zoom_factor
+                    total_scale = dpi_scale / zoom_scale
+                    
+                    doc_x = mouse_pos.x() * total_scale
+                    doc_y = mouse_pos.y() * total_scale
+                    
+                    # Verificar cada círculo en la página actual
+                    for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
+                        # Calcular distancia entre 333  el cursor y el centro del círculo
+                        distance = sqrt((doc_x - circle['x'])**2 + (doc_y - circle['y'])**2)
+                        
+                        # Si la distancia es menor o igual al radio, el cursor está sobre el círculo
+                        if distance <= circle['radius']:
+                            tooltip_text = f"Cambio {i+1} - Página {self.current_page+1}"
+                            break
+                
+                QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
+            else:
+                # Si no hay documento cargado, solo mostrar un mensaje genérico
+                QToolTip.showText(event.globalPos(), "No hay documento cargado", self.page_label)
+            
+            return True
+        
+        return super(PDFViewer, self).eventFilter(obj, event)
     
+    def mouseMoveEvent(self, event):
+        """Maneja el movimiento del mouse sobre el visor de PDF"""
+    
+        # Solo procesar si tenemos documentos cargados
+        if not self.document:
+            return super(PDFViewer, self).mouseMoveEvent(event)
+        
+        # Comprobar si el cursor está sobre el visor de PDF (específicamente sobre el QLabel)
+        if self.page_label.underMouse():
+            # Convertir coordenadas del evento a coordenadas relativas al QLabel
+            label_pos = self.page_label.mapFrom(self, event.pos())
+            
+            # Coordenadas ajustadas por scroll
+            adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
+            adjusted_y = label_pos.y() + self.scroll_area.verticalScrollBar().value()
+            
+            # Mostrar un tooltip con información básica
+            tooltip_text = f"Posición: X={adjusted_x}, Y={adjusted_y}\nPágina: {self.current_page + 1} de {self.document.page_count}"
+            
+            # Añadir información sobre qué documento se está mostrando
+            if hasattr(self, 'showing_original') and self.showing_original:
+                tooltip_text += "\nMostrando: PDF Original"
+            else:
+                tooltip_text += "\nMostrando: PDF Anotado"
+            
+            # Mostrar el tooltip
+            QToolTip.showText(event.globalPos(), tooltip_text, self)
+        else:
+            QToolTip.hideText()
+        
+        return super(PDFViewer, self).mouseMoveEvent(event)
+
+
     def keyPressEvent(self, event):
         """Captura eventos de tecla presionada"""
         # Detectar si se presiona la tecla Q
@@ -270,8 +343,8 @@ class PDFViewer(QWidget):
             self.next_button.setEnabled(self.current_page < self.document.page_count - 1)
         
         # Establecer zoom al 150%
-        self.zoom_factor = 1.5
-        #self.zoom_factor = 2.0
+        #self.zoom_factor = 1.5
+        self.zoom_factor = 2.0
 
         # Renderizar la página con el nuevo zoom
         self.render_current_page()
@@ -304,7 +377,7 @@ class PDFViewer(QWidget):
 
         # Calcular la posición del cambio en el pixmap con el zoom actual
         change_x = (change['x'] * self.zoom_factor)/total_scale
-        change_y = (change['y'] * self.zoom_factor)/total_scal
+        change_y = (change['y'] * self.zoom_factor)/total_scale
         # 
         # Calcular la posición del cambio en el pixmap con el zoom actual
         #change_x = (change['x'])/total_scale
@@ -458,7 +531,7 @@ class PDFViewer(QWidget):
         for circle in self.formatted_circles_by_page[self.current_page]:
             scaled_x = pos.x() * total_scale
             scaled_y = pos.y() * total_scale
-            print("circulo en x", pos.x()," - circulo en y", pos.y())
+            print("circulo en x", circle['x']," - circulo en y", circle['y'])
             print("Scaled x", scaled_x," - Scaled y", scaled_y)
 
             scaled_radius = circle['radius']
@@ -572,8 +645,9 @@ class PDFViewer(QWidget):
     
     def zoom_out(self):
         """Reduce el zoom."""
-        self.zoom_factor /= 1.25
-        self.render_current_page()
+        if self.zoom_factor > 1.0:
+            self.zoom_factor /= 1.25
+            self.render_current_page()
     
     def zoom_reset(self):
         """Restablece el zoom al 100%."""
