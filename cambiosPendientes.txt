@@ -27,3 +27,5 @@ Excepciones de funcionamiento:
 Pendientes:
 --ajustar zoom en el que se muestra cada cambio al ir navegando
 --agregar la funcionalidad a los checkbox para mostrar y ocultar los cambios
+
+---obtener el ancho y alto de la pagina

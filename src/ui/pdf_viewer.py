@@ -107,6 +107,8 @@ class PDFViewer(QWidget):
         self.init_ui()
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
+        self.page_width = 0
+        self.page_height = 0
 
     
     def init_ui(self):
@@ -195,6 +197,12 @@ class PDFViewer(QWidget):
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
+
+                    #print("mouse en x", mouse_pos.x())
+                    #print("mouse en y", mouse_pos.y())
+
+                    #print("horizontal Scrool en ",self.scroll_area.horizontalScrollBar().value())
+                    #print("vertical Scrool en ",self.scroll_area.verticalScrollBar().value())
                     
                     # Verificar cada círculo en la página actual
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
@@ -217,16 +225,20 @@ class PDFViewer(QWidget):
     
     def mouseMoveEvent(self, event):
         """Maneja el movimiento del mouse sobre el visor de PDF"""
-    
+
         # Solo procesar si tenemos documentos cargados
         if not self.document:
             return super(PDFViewer, self).mouseMoveEvent(event)
         
         # Comprobar si el cursor está sobre el visor de PDF (específicamente sobre el QLabel)
         if self.page_label.underMouse():
+        
             # Convertir coordenadas del evento a coordenadas relativas al QLabel
             label_pos = self.page_label.mapFrom(self, event.pos())
             
+            print("mouse en x", label_pos.x())
+            print("mouse en y", label_pos.y())
+
             # Coordenadas ajustadas por scroll
             adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
             adjusted_y = label_pos.y() + self.scroll_area.verticalScrollBar().value()
@@ -369,28 +381,45 @@ class PDFViewer(QWidget):
             
         pixmap_width = self.page_label.pixmap().width()
         pixmap_height = self.page_label.pixmap().height()
-        
-        #imprimir los cambios con zoom de 100
-        print("Coordenadas del cambio en x: ", change['x']/total_scale)
-        print("Coordenadas dle cambio en y: ", change['y']/total_scale)
-        print("zoom de 100")
+
+        print("Page label dim----------------------")
+        print("width",self.page_label.width())
+        print("height",self.page_label.height())
 
         # Calcular la posición del cambio en el pixmap con el zoom actual
-        change_x = (change['x'] * self.zoom_factor)/total_scale
-        change_y = (change['y'] * self.zoom_factor)/total_scale
-        # 
-        # Calcular la posición del cambio en el pixmap con el zoom actual
-        #change_x = (change['x'])/total_scale
-        #change_y = (change['y'])/total_scale
+        change_x = change['x']
+        change_y = change['y']
 
-        #imprimir los cambios con zoom de 150
-        print("zoom de 150")
-        print("Coordenadas del cambio en x: ", change_x)
-        print("Coordenadas dle cambio en y: ", change_y)
+        print("Change dimensions----------------------")
+        print("En x",change_x)
+        print("En y",change_y)
         
+        #calcular scroll
+        scroll_x = (change_x / self.page_width)
+        scroll_y = (change_y / self.page_height)
+
+        print("Proporcion---------------")
+        print("Calculated scroll x",scroll_x)
+        print("Calculated scroll y",scroll_y)
+
+        print("Scroll bar max values-------------------")
+        print("Width max",self.scroll_area.horizontalScrollBar().maximum())
+        print("Height max",self.scroll_area.verticalScrollBar().maximum())
+
+        print("Scroll bar dimensions------------------")
+        print("Width",self.scroll_area.horizontalScrollBar().width())
+        print("Height",self.scroll_area.verticalScrollBar().height())
+        
+        #scroll area dimensions
+        h_scroll = self.scroll_area.horizontalScrollBar().width() + self.scroll_area.horizontalScrollBar().maximum()
+        v_scroll = self.scroll_area.verticalScrollBar().height() + self.scroll_area.verticalScrollBar().maximum()
+        print("Scroll total dimensions")
+        print("en x: ", h_scroll)
+        print("en y: ", v_scroll)
+
         # Ajustar el scroll para centrar el cambio
-        h_value = max(0, int(change_x - self.scroll_area.width()))
-        v_value = max(0, int(change_y - self.scroll_area.height()))
+        h_value = max(0, int(h_scroll*scroll_x))
+        v_value = max(0, int(v_scroll*scroll_y))
 
         print("Scroll")
         print("en x: ", h_value)
@@ -548,7 +577,13 @@ class PDFViewer(QWidget):
         print("No se hizo clic en ningún círculo.")
         return None, None
 
-    def set_circles(self, circles_by_page):
+    def set_circles(self, circles_by_page, page_width, page_height):
+        self.page_width = page_width
+        self.page_height = page_height
+
+        print("Page width", self.page_width)
+        print("Page height", self.page_height)
+
         """Establece los círculos detectados por página."""
         self.circles_by_page = circles_by_page
         self.formatted_circles_by_page = {}

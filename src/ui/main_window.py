@@ -57,8 +57,16 @@ class WorkerThread(QThread):
         total_pages = min(len(images1), len(images2))
         for i, (img1, img2) in enumerate(zip(images1, images2)):
             # Comparar imágenes y obtener coordenadas de diferencias
-            diff_coords,_ = image_comparator.find_differences(img1, img2)
-            #print("Differences found: ", diff_coords[:5])  # Muestra solo 5 puntos para verificar
+            diff_coords,_, image_dim  = image_comparator.find_differences(img1, img2)
+            global page_height 
+            global page_width
+
+            page_height = image_dim[0]
+            page_width = image_dim[1]
+            
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>From find differences>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print("page_width", page_width)
+            print("page_height", page_height)
 
             # Paso 4: Agrupar diferencias en círculos
             if diff_coords:
@@ -511,7 +519,7 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.load_pdf(output_path, self.pdf1_file)
         
         # Actualizar visibilidad de círculos
-        self.annotated_viewer.set_circles(circles_by_page)
+        self.annotated_viewer.set_circles(circles_by_page, page_width, page_height)
         
         # IMPORTANTE: Aplicar inmediatamente el filtrado a las anotaciones visibles
         for page_num in self.annotated_viewer.formatted_circles_by_page:
