@@ -19,17 +19,13 @@ class ChangesListWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         
-        # Título
-        title_label = QLabel("Cambios Detectados")
-        title_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
-        
         # Árbol para mostrar cambios de forma jerárquica
         self.changes_tree = QTreeWidget(self)
         self.changes_tree.setHeaderLabels(["Página/Cambio", "Activado"])
         self.changes_tree.setColumnWidth(0, 150)
         self.changes_tree.itemClicked.connect(self.on_item_clicked)
         
-        layout.addWidget(title_label)
+        #layout.addWidget(title_label)
         layout.addWidget(self.changes_tree)
     
     def update_changes_list(self, formatted_circles_by_page):
@@ -169,12 +165,10 @@ class PDFViewer(QWidget):
         layout.addLayout(nav_layout)
         
         # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "PDF Anotado" in self.title:
+        if "PDF Anotado" in self.title and self.current_page > 0:
             print("Inicializando lista de cambios para el PDF Anotado")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
-            #layout.addWidget(self.changes_list_widget)
-            
 
     def eventFilter(self, obj, event):
         """Filtro de eventos para capturar eventos del mouse en el QLabel"""
@@ -197,12 +191,6 @@ class PDFViewer(QWidget):
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
-
-                    #print("mouse en x", mouse_pos.x())
-                    #print("mouse en y", mouse_pos.y())
-
-                    #print("horizontal Scrool en ",self.scroll_area.horizontalScrollBar().value())
-                    #print("vertical Scrool en ",self.scroll_area.verticalScrollBar().value())
                     
                     # Verificar cada círculo en la página actual
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
@@ -610,7 +598,14 @@ class PDFViewer(QWidget):
             print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
             self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
             
+        # Agregamos una lista de cambios solo si este es el visor de PDF anotado
+        if "PDF Anotado" in self.title and self.current_page >= 0:
+            print("Inicializando lista de cambios para el PDF Anotado")
+            self.changes_list_widget = ChangesListWidget(self)
+            self.changes_list_widget.change_selected.connect(self.navigate_to_change)
+            
         self.render_current_page()
+        self.update_page_info()
         
     def filter_contained_circles(self, circles):
         """
