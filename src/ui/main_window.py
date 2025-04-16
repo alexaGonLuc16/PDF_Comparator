@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout
                             QWidget, QPushButton, QFileDialog, QLabel, QCheckBox,
                             QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from src.pdf_rotation import PDFRotationUIHandler
+
 import fitz  # PyMuPDF - importante para la función toggle_circle_visibility
 
 from src.pdf_processor import PDFProcessor
@@ -249,6 +251,7 @@ class MainWindow(QMainWindow):
 
         # Visor anotado (izquierda)
         self.annotated_viewer = PDFViewer("PDF Anotado")
+        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer)
         
         # Contenedor del visor anotado con el checkbox de círculos
         annotated_container = QWidget()
@@ -298,6 +301,32 @@ class MainWindow(QMainWindow):
 
         print("UI de MainWindow inicializada")
         
+    def on_document_modified(self):
+        self.document_modified = True
+    
+        # Actualizar título o interfaz para reflejar los cambios
+        self.update_ui_for_unsaved_changes()
+
+    def update_ui_for_unsaved_changes(self):
+        """
+        Actualiza la interfaz de usuario para indicar que hay cambios sin guardar.
+        """
+        # 1. Actualizar el título de la ventana añadiendo un asterisco
+        import os
+        filename = "Modificado"
+        self.setWindowTitle(f"PDF Comparator - {filename} *")
+        
+        # 2. Habilitar el botón/acción de guardar (si existe)
+        if hasattr(self, 'save_action'):
+            self.save_action.setEnabled(True)
+        
+        # 3. Opcional: Cambiar el color o estado de algún indicador visual
+        if hasattr(self, 'status_label'):
+            self.status_label.setText("Documento modificado - Cambios sin guardar")
+            
+        # 4. Establecer una variable interna para preguntar al cerrar
+        self.document_modified = True
+
     def handle_circle_click(self, page_num, clicked_circle):
         """Maneja clics en círculos para actualizar anotaciones."""
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
@@ -439,6 +468,9 @@ class MainWindow(QMainWindow):
             self.output_file = file_path
             self.save_path.setText(os.path.basename(file_path))
             self.update_compare_button()
+            self.annotated_viewer.file_path = os.path.basename(file_path)
+            print("Ruta para annotated pdf",file_path,">>>>>>>>>>>>>>")
+            self.rotation_handler.file_path = os.path.basename(file_path)
     
     def update_compare_button(self):
         # Comprueba si ambas rutas existen y no son None

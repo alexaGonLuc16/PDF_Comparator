@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                             QListWidgetItem, QFrame, QTreeWidget,QTreeWidgetItem, QToolTip)
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent
+from src.pdf_rotation import PDFRotationUIHandler
+
 from math import sqrt
 
 class ChangesListWidget(QWidget):
@@ -105,7 +107,8 @@ class PDFViewer(QWidget):
         self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
         self.page_width = 0
         self.page_height = 0
-
+        self.matrix = fitz.Matrix(1, 1)  # Escala 1:1, sin transformación
+        self.file_path = None
     
     def init_ui(self):
         # Layout principal
@@ -304,10 +307,14 @@ class PDFViewer(QWidget):
     def load_pdf(self, pdf_path, original_pdf_path=None):
         """Carga un archivo PDF en el visor."""
         if pdf_path:
+            print("Entrando a load pdf en PDFViewer")
             # Cerrar documento previo si existe
             if self.document:
+                print("Entrando al if para cerrar doc")
                 self.document.close()
             
+            print("load pdf cerrar documento")
+
             # Abrir nuevo documento
             self.document = fitz.open(pdf_path)
             self.current_page = 0
@@ -321,10 +328,45 @@ class PDFViewer(QWidget):
             # Actualizar interfaz
             self.update_page_info()
             self.render_current_page()
+            print("load_pdf actulizar interfaz")
             
             # Habilitar/deshabilitar botones
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(self.document.page_count > 1 )
+
+    #Añade un método para recargar el documento (útil después de una rotación):
+    def reload_document(self):
+        """
+        Recarga el documento actual manteniendo la página actual.
+        Útil después de realizar modificaciones como rotaciones.
+        """
+        print("Entrando a reload document")
+        if not self.document:
+            print("Entrando a if de reload_document")
+            return
+        
+        # Guardar la página actual
+        current_page = self.current_page
+        
+        print("Pagina actual guardada")
+        # Cerrar el documento
+        self.document.close()
+        
+        print("Documento cerrado")
+        # Reabrir el documento
+        self.document = fitz.open(self)
+        
+        print("Documento reabierto")
+        # Asegurarse de que la página actual sea válida
+        self.current_page = min(current_page, len(self.document) - 1)
+        
+        # Actualizar la visualización
+        self.update_display()
+        
+        print("Display updated")
+        # Actualizar información de la página si es necesario
+        self.update_page_info()
+        print("Update page info")
 
     def has_changes_list(self):
         """Verifica si este visor tiene lista de cambios"""
@@ -433,6 +475,33 @@ class PDFViewer(QWidget):
         #habilita o desabilita la deteccion de clicks en circulos
         self.clicks_enabled = enabled
     
+    # Actualizar la visualización 
+    # después de una rotación:
+
+    def update_display(self):
+        """
+        Actualiza la visualización del PDF después de realizar modificaciones como rotaciones.
+        """
+        if not self.document or self.current_page >= len(self.document):
+            return
+        
+        # Obtener la página actual
+        page = self.document[self.current_page]
+        
+        # Renderizar la página nuevamente
+        pix = page.get_pixmap(matrix=self.matrix)
+        
+        # Convertir a QImage y actualizar el QLabel
+        img = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(img)
+        
+        # Asumiendo que tienes un QLabel llamado image_label
+        if hasattr(self, 'image_label'):
+            self.page_label.setPixmap(pixmap)
+        
+        # Actualizar información de la página en la UI si es necesario
+        self.update_page_info()
+
     def update_page_info(self):
         """Actualiza la información de página actual."""
         if self.document:
@@ -442,7 +511,6 @@ class PDFViewer(QWidget):
             if self.has_changes_list() and hasattr(self, 'formatted_circles_by_page'):
                 if self.current_page in self.formatted_circles_by_page:
                     changes = self.formatted_circles_by_page[self.current_page]
-                    print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
                     self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
                 else:
                     self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
