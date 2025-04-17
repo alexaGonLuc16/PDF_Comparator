@@ -307,13 +307,9 @@ class PDFViewer(QWidget):
     def load_pdf(self, pdf_path, original_pdf_path=None, c_page = 0):
         """Carga un archivo PDF en el visor."""
         if pdf_path:
-            print("Entrando a load pdf en PDFViewer")
             # Cerrar documento previo si existe
             if self.document:
-                print("Entrando al if para cerrar doc")
                 self.document.close()
-            
-            print("load pdf cerrar documento")
 
             # Abrir nuevo documento
             self.document = fitz.open(pdf_path)
@@ -328,7 +324,6 @@ class PDFViewer(QWidget):
             # Actualizar interfaz
             self.update_page_info()
             self.render_current_page()
-            print("load_pdf actulizar interfaz")
             
             # Habilitar/deshabilitar botones
             self.prev_button.setEnabled(False)
@@ -342,31 +337,25 @@ class PDFViewer(QWidget):
         """
         print("Entrando a reload document")
         if not self.document:
-            print("Entrando a if de reload_document")
             return
         
         # Guardar la página actual
         current_page = self.current_page
         
-        print("Pagina actual guardada")
         # Cerrar el documento
         self.document.close()
-        
-        print("Documento cerrado")
+
         # Reabrir el documento
         self.document = fitz.open(self)
-        
-        print("Documento reabierto")
+
         # Asegurarse de que la página actual sea válida
         self.current_page = min(current_page, len(self.document) - 1)
         
         # Actualizar la visualización
         self.update_display()
         
-        print("Display updated")
         # Actualizar información de la página si es necesario
         self.update_page_info()
-        print("Update page info")
 
     def has_changes_list(self):
         """Verifica si este visor tiene lista de cambios"""

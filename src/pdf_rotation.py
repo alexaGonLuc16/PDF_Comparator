@@ -1,14 +1,13 @@
-"""
-Versión modificada de la implementación de rotación de PDF con opción de guardar manual.
-"""
-
+import tempfile
+import os
+import shutil
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (
     QAction, QMenu, QToolBar, QToolButton, 
     QMessageBox, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QFileDialog
 )
-from PyQt5.QtGui import QIcon, QTransform, QPixmap
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIcon, QTransform, QPixmap, QImage
+from PyQt5.QtCore import Qt, pyqtSignal, QByteArray
 
 class PDFRotator:
     """Clase para manejar la rotación de archivos PDF."""
@@ -24,6 +23,7 @@ class PDFRotator:
         self.document_handler = document_handler
         # Nueva variable para rastrear si hay cambios sin guardar
         self.has_unsaved_changes = False
+        self.temp_path = None
     
     def rotate_page(self, page_index, degrees):
         """
@@ -49,10 +49,27 @@ class PDFRotator:
             
             # Establece la nueva rotación para la página
             page.set_rotation(new_rotation)
+
+            # Aplicar zoom
+            matrix = fitz.Matrix(self.document_handler.zoom_factor, self.document_handler.zoom_factor)
+            # Get the pixmap of the rotated page
+            pix = page.get_pixmap(matrix =  matrix)
+            print(f"Pixmap creado: {pix.width}x{pix.height}")
+
+            # Convertir a QImage/QPixmap
+            img_data = QByteArray(pix.samples)
+            qimg = QImage(img_data, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(qimg)
             
+            print(f"QPixmap creado: {pixmap.width()}x{pixmap.height()}")
+            
+            # Mostrar en el label
+            self.document_handler.page_label.setPixmap(pixmap)
+            self.document_handler.page_label.resize(pixmap.size())
+
             # Marcar que hay cambios sin guardar
             self.has_unsaved_changes = True
-            
+
             return True
         except Exception as e:
             print(f"Error al rotar la página: {str(e)}")
@@ -98,34 +115,27 @@ class PDFRotator:
             save_path = file_path or self.document_handler.file_path
             current_page = self.document_handler.current_page  # Guardar la página actual
             
-            # Determinar si es el archivo original
-            is_original = (save_path == self.document_handler.file_path)
-            
             # Guardar en un archivo temporal primero
-            import tempfile
-            import os
-            import shutil
-            
             # Crear un archivo temporal
-            temp_fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+            temp_fd, self.temp_path = tempfile.mkstemp(suffix=".pdf")
             os.close(temp_fd)
             
             # Guardar en el archivo temporal
             self.document_handler.document.save(
-                temp_path,
+                self.temp_path,
                 garbage=4,  # Máxima limpieza
                 deflate=True,  # Comprimir
                 clean=True  # Limpiar y reducir tamaño
             )
-            
+
             # Cerrar el documento actual (importante para liberar el archivo)
             self.document_handler.document.close()
             
             # Reemplazar el archivo de destino con el temporal
-            shutil.copy2(temp_path, save_path)
+            shutil.copy2(self.temp_path, save_path)
             
             # Eliminar el archivo temporal
-            os.unlink(temp_path)
+            os.unlink(self.temp_path)
             
             # Reiniciar la variable de cambios sin guardar
             self.has_unsaved_changes = False
@@ -412,6 +422,7 @@ class PDFRotationUIHandler:
             # Actualizar la visualización
             if hasattr(self.document_handler, 'load_pdf'):
                 self.document_handler.load_pdf(file_path, c_page = current_page)
+                self.document_handler.prev_button.setEnabled(self.document_handler.current_page > 0)
             
             # Actualizar estado de la UI
             self.mark_document_as_saved()

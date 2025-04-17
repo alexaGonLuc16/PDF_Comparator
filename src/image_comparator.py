@@ -34,9 +34,6 @@ class ImageComparator:
         img1 = self.load_image(img1_input)
         img2 = self.load_image(img2_input)
 
-        print("img height",img1.shape[0])
-        print("img width",img1.shape[1])
-
         # Asegurar que son imágenes B/N (1 canal)
         if len(img1.shape) > 2:
             img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
