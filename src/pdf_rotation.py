@@ -85,7 +85,7 @@ class PDFRotator:
         
         Args:
             file_path: Ruta donde guardar el archivo. Si es None, 
-                      se sobrescribe el archivo actual.
+                    se sobrescribe el archivo actual.
         
         Returns:
             bool: True si el guardado fue exitoso, False en caso contrario
@@ -96,30 +96,43 @@ class PDFRotator:
         try:
             # Si no se proporciona ruta, usar la ruta actual del documento
             save_path = file_path or self.document_handler.file_path
+            current_page = self.document_handler.current_page  # Guardar la página actual
             
-            # Guardar el documento
+            # Determinar si es el archivo original
+            is_original = (save_path == self.document_handler.file_path)
+            
+            # Guardar en un archivo temporal primero
+            import tempfile
+            import os
+            import shutil
+            
+            # Crear un archivo temporal
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+            os.close(temp_fd)
+            
+            # Guardar en el archivo temporal
             self.document_handler.document.save(
-                save_path,
-                garbage=3,  # Optimizar PDF
+                temp_path,
+                garbage=4,  # Máxima limpieza
                 deflate=True,  # Comprimir
                 clean=True  # Limpiar y reducir tamaño
             )
             
+            # Cerrar el documento actual (importante para liberar el archivo)
+            self.document_handler.document.close()
+            
+            # Reemplazar el archivo de destino con el temporal
+            shutil.copy2(temp_path, save_path)
+            
+            # Eliminar el archivo temporal
+            os.unlink(temp_path)
+            
             # Reiniciar la variable de cambios sin guardar
             self.has_unsaved_changes = False
-
-            #self.document_handler.document = fitz.open(file_path)
-
-            # Si se guardó en una nueva ubicación, cerrar el documento actual y abrir el nuevo
-            if file_path and file_path != self.document_handler.file_path:
-                self.document_handler.document.close()
-                self.document_handler.file_path = file_path
-                self.document_handler.reload_document()
             
-            return True
+            return True, current_page
         except Exception as e:
             print(f"Error al guardar el documento: {str(e)}")
-            print("Path", self.document_handler.file_path)
             return False
 
 
@@ -350,21 +363,23 @@ class PDFRotationUIHandler:
             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
         )
         
-        if reply == QMessageBox.Yes:
-        
-            file_path = self.document_handler.file_path
-            
-            print("------------------------------------------------------------------------------------------------------------------------")
-            print("------------------------------------------------------------------------------------------------------------------------")
-            print("Path for new document in reply = YES", file_path)
-
-            if not file_path:
-                return  # Usuario canceló el diálogo
-
         if reply == QMessageBox.Cancel:
             return
         
         file_path = None
+        
+        if reply == QMessageBox.Yes:
+            # Usar la ruta del archivo actual
+            file_path = self.document_handler.file_path
+            
+            if not file_path:
+                QMessageBox.warning(
+                    self.main_window,
+                    "Advertencia",
+                    "No se conoce la ruta del archivo original."
+                )
+                return
+        
         if reply == QMessageBox.No:
             # Guardar como nuevo archivo
             file_path, _ = QFileDialog.getSaveFileName(
@@ -374,22 +389,29 @@ class PDFRotationUIHandler:
                 "Archivos PDF (*.pdf)"
             )
             
-            print("------------------------------------------------------------------------------------------------------------------------")
-            print("------------------------------------------------------------------------------------------------------------------------")
-            print("Path for new document", file_path)
-
             if not file_path:
                 return  # Usuario canceló el diálogo
         
-        success = self.rotator.save_document(file_path)
-        self.document_handler.file_path = file_path
-
+        # Guardar el documento (esto cerrará el documento si es necesario)
+        success, current_page = self.rotator.save_document(file_path)
+        
         if success:
-            # Refrescar la visualización
-            if hasattr(self.document_handler, 'reload_document'):
-                self.document_handler.reload_document()
-            elif hasattr(self.document_handler, 'update_display'):
-                self.document_handler.update_display()
+            # Importante: No intentar actualizar la visualización aquí
+            # porque es responsabilidad del rotator reabrir el documento
+            
+            # Solo actualizar la referencia a la ruta del archivo
+            self.document_handler.file_path = file_path
+
+            # Reabrir el documento en la nueva ubicación
+            self.document_handler.document = fitz.open(file_path)
+
+            # Restaurar la página actual
+            if self.document_handler.current_page >= len(self.document_handler.document):
+                self.document_handler.current_page = 0
+            
+            # Actualizar la visualización
+            if hasattr(self.document_handler, 'load_pdf'):
+                self.document_handler.load_pdf(file_path, c_page = current_page)
             
             # Actualizar estado de la UI
             self.mark_document_as_saved()
@@ -399,8 +421,6 @@ class PDFRotationUIHandler:
                 "Éxito",
                 "El documento se guardó correctamente."
             )
-
-            print("Document saved in ",self.file_path,"----------------------------------------------------------------------")
         else:
             QMessageBox.critical(
                 self.main_window,

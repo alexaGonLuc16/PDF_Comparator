@@ -468,9 +468,9 @@ class MainWindow(QMainWindow):
             self.output_file = file_path
             self.save_path.setText(os.path.basename(file_path))
             self.update_compare_button()
-            self.annotated_viewer.file_path = os.path.basename(file_path)
+            self.annotated_viewer.file_path = file_path
             print("Ruta para annotated pdf",file_path,">>>>>>>>>>>>>>")
-            self.rotation_handler.file_path = os.path.basename(file_path)
+            self.rotation_handler.file_path = file_path
     
     def update_compare_button(self):
         # Comprueba si ambas rutas existen y no son None

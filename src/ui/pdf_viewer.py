@@ -304,7 +304,7 @@ class PDFViewer(QWidget):
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
 
-    def load_pdf(self, pdf_path, original_pdf_path=None):
+    def load_pdf(self, pdf_path, original_pdf_path=None, c_page = 0):
         """Carga un archivo PDF en el visor."""
         if pdf_path:
             print("Entrando a load pdf en PDFViewer")
@@ -317,7 +317,7 @@ class PDFViewer(QWidget):
 
             # Abrir nuevo documento
             self.document = fitz.open(pdf_path)
-            self.current_page = 0
+            self.current_page = c_page
             
             #Cargar PDF original
             if original_pdf_path:
