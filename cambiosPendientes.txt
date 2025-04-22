@@ -1,5 +1,5 @@
 Posibles features a implementar:
---Indicar ucales fueron los cambios de elementos agregados en el esquematico y cuales fueron las partes en donde se eliminaron elementos, asi como en que partes estas se eliminaron
+--Indicar cuales fueron los cambios de elementos agregados en el esquematico y cuales fueron las partes en donde se eliminaron elementos, asi como en que partes estas se eliminaron
 
 Cambios que aun no se identifican al comparar el pdf 81 con el 73 1:
 
@@ -8,10 +8,7 @@ Pagina 17, cambio en la parte de la resistencia R10636: es un error que posiblem
 ****Parece que no identifica bien los cambios de las letras que estan colocadas de forma vertical
 
 Issues:
---Ya no ejecuta el toggle individual de los circulos
 --checar si se pueden descartar los cambios del texto en el margen
---poner icocnos checkbox de los cambios
-poner el pdf anotado en una sola ventana para poder verlo y cambiar al pdf original con un solo comando(tambien conservar la opcion de ver ambos pdf en paralelo)
 --checar si las hojas del pdf siempre tienen las mismas dimensiones para considerar como descartar los cambios marcados en el margen 
 
 para martes 8 de abril:
@@ -28,4 +25,8 @@ Pendientes:
 --ajustar zoom en el que se muestra cada cambio al ir navegando
 --agregar la funcionalidad a los checkbox para mostrar y ocultar los cambios
 
----obtener el ancho y alto de la pagina
+Lunes 21:
+--implementar division del pdf
+
+
+--Rotar ambas paginas de pdfs(original y anotado)

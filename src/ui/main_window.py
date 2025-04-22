@@ -114,10 +114,12 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         # Crear layout principal
         central_widget = QWidget()
-        main_layout = QVBoxLayout(central_widget)
+        self.main_layout = QVBoxLayout(central_widget)
         
+        #Crear un widget contenedor para la configuracion
+        self.config_container = QWidget()
         # Área de configuración
-        config_layout = QHBoxLayout()
+        self.config_layout = QHBoxLayout()
         
         # Selección de archivos
         file_group = QGroupBox("Selección de archivos")
@@ -238,33 +240,43 @@ class MainWindow(QMainWindow):
         action_layout.addWidget(self.compare_button)
         action_layout.addWidget(self.progress_bar)
         
-        config_layout.addWidget(file_group, 3)
-        config_layout.addWidget(param_group, 2)
-        config_layout.addWidget(action_group, 1)
+        self.config_layout.addWidget(file_group, 3)
+        self.config_layout.addWidget(param_group, 2)
+        self.config_layout.addWidget(action_group, 1)
+
+        #anadir contenedor al layout principal
+        self.main_layout.addWidget(self.config_container)
         
         # Área de visualización
-        view_layout = QHBoxLayout()
-        # Visor original
+        self.view_layout = QHBoxLayout()
+        # Visor original (izquierda)
         self.original_viewer = PDFViewer("PDF Original")
-        # Visor anotado
         # Modificar el view_layout para incluir la lista de cambios
-
-        # Visor anotado (izquierda)
+        
+        # Visor anotado (derecha)
         self.annotated_viewer = PDFViewer("PDF Anotado")
         self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer)
         
         # Contenedor del visor anotado con el checkbox de círculos
-        annotated_container = QWidget()
-        annotated_layout = QVBoxLayout(annotated_container)
-        annotated_layout.setContentsMargins(0, 0, 0, 0)
+        self.annotated_container = QWidget()
+        self.annotated_layout = QVBoxLayout(self.annotated_container)
+        self.annotated_layout.setContentsMargins(0, 0, 0, 0)
         
-        annotated_layout.addWidget(self.annotated_viewer)
+        self.annotated_layout.addWidget(self.annotated_viewer)
         
         self.toggle_circles = QCheckBox("Mostrar círculos")
         self.toggle_circles.setChecked(True)
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
-        
-        annotated_layout.addWidget(self.toggle_circles)
+
+        self.toggle_side_by_side = QCheckBox("Vista lado a lado")
+        self.toggle_side_by_side.setChecked(False) #por defecto desactivado
+        self.toggle_side_by_side.stateChanged.connect(self.toggle_side_by_side_mode)
+
+        # Añadir el checkbox al layout después de toggle_circles
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.addWidget(self.toggle_circles)
+        checkbox_layout.addWidget(self.toggle_side_by_side)
+        self.annotated_layout.addLayout(checkbox_layout)
         
         # Contenedor para la lista de cambios (derecha)
         self.changes_container = QWidget()
@@ -277,14 +289,15 @@ class MainWindow(QMainWindow):
         changes_title.setStyleSheet("font-size: 11pt; font-weight: bold;")
         
         changes_layout.addWidget(changes_title)
-        
+
+        #anadir solo el visor anotado por defecto
         # Configurar la vista
-        view_layout.addWidget(annotated_container, 5)  # PDF visor ocupa 5/6 de la pantalla
-        view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
+        self.view_layout.addWidget(self.annotated_container,5)  # PDF visor ocupa 5/6 de la pantalla
+        self.view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
         
         # Añadir layouts al layout principal
-        main_layout.addLayout(config_layout, 1)
-        main_layout.addLayout(view_layout, 4)
+        self.main_layout.addLayout(self.config_layout, 1)
+        self.main_layout.addLayout(self.view_layout, 4)
         
         self.setCentralWidget(central_widget)
         
@@ -293,14 +306,15 @@ class MainWindow(QMainWindow):
         self.pdf2_file = None
         self.output_file = None
         self.circles_by_page = {}
-        
+        self.side_by_side_mode = False
+
         # Flag para habilitar circle_click event
         self.circle_clicked_flag = False
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
         self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
 
         print("UI de MainWindow inicializada")
-        
+
     def on_document_modified(self):
         self.document_modified = True
     
@@ -403,6 +417,62 @@ class MainWindow(QMainWindow):
                         print(f"Error al borrar {filename}: {e}")
         except Exception as e:
             print(f"Error durante la limpieza inicial: {e}")
+
+    def toggle_side_by_side_mode(self, state):
+        """Cambia entre modo de un solo visor y dos visores lado a lado."""
+        is_side_by_side = (state == Qt.Checked)
+        
+        if is_side_by_side == self.side_by_side_mode:
+            return  # No hay cambio
+        
+        self.side_by_side_mode = is_side_by_side
+        
+        # Obtener el layout donde están los visores
+        #view_layout = None
+        '''for i in range(self.centralWidget().layout().count()):
+            item = self.centralWidget().layout().itemAt(i)
+            if isinstance(item, QHBoxLayout) and item.count() > 0:
+                view_layout = item
+                break
+        '''
+        if not self.view_layout:
+            return
+        
+        # Limpiar el layout
+        while self.view_layout.count():
+            item = self.view_layout.takeAt(0)
+            if item.widget():
+                item.widget().hide()
+        
+        # Recrear layout según el modo
+        if is_side_by_side:
+            # En modo lado a lado, mostrar ambos visores
+            self.view_layout.addWidget(self.original_viewer, 4)
+            self.view_layout.addWidget(self.annotated_container, 4)
+            self.view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
+            
+            # Cargar el PDF original si no está cargado
+            if self.pdf1_file and not self.original_viewer.document:
+                self.original_viewer.load_pdf(self.pdf1_file)
+                # Sincronizar la página actual
+                self.original_viewer.current_page = self.annotated_viewer.current_page
+                self.original_viewer.render_current_page()
+            
+            # Sincronizar navegación
+            self.sync_page_navigation()
+        else:
+            # En modo normal, mostrar solo el visor anotado
+            self.view_layout.addWidget(self.annotated_container,5)
+            self.view_layout.addWidget(self.changes_container, 1)  # Lista de cambios ocupa 1/6 de la pantalla
+
+        # Añadir layouts al layout principal
+        self.main_layout.addLayout(self.view_layout)
+        
+        # Mostrar widgets
+        for i in range(self.view_layout.count()):
+            item = self.view_layout.itemAt(i)
+            if item.widget():
+                item.widget().show()
 
     #metodo de alternancia para el campo de texto
     def toggle_pages_input(self, checked):
@@ -534,6 +604,8 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
     
     def comparison_finished(self, output_path, circles_by_page):
+        self.config_layout_visible = False  # Marcar como oculto
+
         # Habilitar circle_clicked event
         self.circle_clicked_flag = True
         self.annotated_viewer.set_clicks_enabled(True)  # habilitar los clicks
@@ -550,6 +622,12 @@ class MainWindow(QMainWindow):
         # Cargar PDF anotado
         self.annotated_viewer.load_pdf(output_path, self.pdf1_file)
         
+        # Si estamos en modo lado a lado, actualizar también el visor original
+        if self.side_by_side_mode and self.original_viewer:
+            self.original_viewer.load_pdf(self.pdf1_file)
+            self.original_viewer.current_page = self.annotated_viewer.current_page
+            self.original_viewer.render_current_page()
+
         # Actualizar visibilidad de círculos
         self.annotated_viewer.set_circles(circles_by_page, page_width, page_height)
         
@@ -581,7 +659,73 @@ class MainWindow(QMainWindow):
             changes_widget.setVisible(True)
             self.changes_container.setVisible(True)
 
-    
+        # Quitar el config_layout del main_layout
+        if hasattr(self, 'config_layout') and self.config_layout in [self.main_layout.itemAt(i).layout() for i in range(self.main_layout.count())]:
+            # Primero, ocultar todos los widgets dentro del config_layout
+            for i in range(self.config_layout.count()):
+                item = self.config_layout.itemAt(i)
+                if item.widget():
+                    item.widget().hide()
+            
+            # Luego, quitar el layout del main_layout
+            self.main_layout.removeItem(self.config_layout)
+            
+            # Actualizar el layout principal
+            self.main_layout.update()
+        
+        # Asegurarse de que los PDF y controles sean visibles
+        if hasattr(self, 'annotated_container'):
+            self.annotated_container.show()
+        if hasattr(self, 'changes_container'):
+            self.changes_container.show()
+        if self.side_by_side_mode and hasattr(self, 'original_viewer'):
+            self.original_viewer.show()
+
+    def restore_config_layout(self):
+        if hasattr(self, 'config_layout_visible') and not self.config_layout_visible:
+            # Restaurar al inicio del layout principal
+            self.main_layout.insertLayout(0, self.config_layout)
+            
+            # Mostrar widgets
+            for i in range(self.config_layout.count()):
+                item = self.config_layout.itemAt(i)
+                if item.widget():
+                    item.widget().show()
+            
+            self.config_layout_visible = True
+
+    def sync_page_navigation(self):
+        """Conecta las señales de navegación entre ambos visores."""
+        if hasattr(self, 'original_viewer') and self.original_viewer and hasattr(self, 'annotated_viewer') and self.annotated_viewer:
+            # Cuando cambia la página en el visor original, actualizar el visor anotado
+            self.original_viewer.prev_button.clicked.disconnect()  # Desconectar conexiones existentes
+            self.original_viewer.next_button.clicked.disconnect()
+            
+            self.original_viewer.prev_button.clicked.connect(self.sync_prev_page)
+            self.original_viewer.next_button.clicked.connect(self.sync_next_page)
+
+    def sync_prev_page(self):
+        """Navega a la página anterior en ambos visores."""
+        if self.annotated_viewer.current_page > 0:
+            self.annotated_viewer.current_page -= 1
+            self.annotated_viewer.render_current_page()
+            self.annotated_viewer.update_page_info()
+            
+            self.original_viewer.current_page = self.annotated_viewer.current_page
+            self.original_viewer.render_current_page()
+            self.original_viewer.update_page_info()
+
+    def sync_next_page(self):
+        """Navega a la página siguiente en ambos visores."""
+        if self.annotated_viewer.current_page < self.annotated_viewer.document.page_count - 1:
+            self.annotated_viewer.current_page += 1
+            self.annotated_viewer.render_current_page()
+            self.annotated_viewer.update_page_info()
+            
+            self.original_viewer.current_page = self.annotated_viewer.current_page
+            self.original_viewer.render_current_page()
+            self.original_viewer.update_page_info()
+        
     def toggle_circle_visibility(self, state):
         if hasattr(self.annotated_viewer, 'document') and self.annotated_viewer.document:
             try:
