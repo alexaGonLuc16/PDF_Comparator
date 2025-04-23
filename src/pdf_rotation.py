@@ -149,9 +149,9 @@ class PDFRotator:
 class RotationDialog(QDialog):
     """Diálogo para confirmar y seleccionar opciones de rotación."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, title ="Rotar PDF"):
         super().__init__(parent)
-        self.setWindowTitle("Rotar PDF")
+        self.setWindowTitle(title)
         self.resize(300, 150)
         
         self.setup_ui()
@@ -224,7 +224,7 @@ class RotationDialog(QDialog):
 class PDFRotationUIHandler:
     """Manejador de la interfaz de usuario para la rotación de PDF."""
     
-    def __init__(self, main_window, document_handler):
+    def __init__(self, main_window, document_handler, secondary_pdf = None, title = "Rotar PDF"):
         """
         Inicializa el manejador de UI para rotación.
         
@@ -234,16 +234,19 @@ class PDFRotationUIHandler:
         """
         self.main_window = main_window
         self.document_handler = document_handler
+        self.secondary_pdf = secondary_pdf
         self.rotator = PDFRotator(document_handler)
         self.file_path = None
-        
+        self.title = title
+        self.rotate_both = False
+
         # Inicializar elementos de UI
         self.setup_ui_elements()
     
     def setup_ui_elements(self):
         """Configura los elementos de UI para la rotación."""
         # Crear acciones
-        self.rotate_action = QAction(QIcon("icons/rotate.png"), "Rotar PDF", self.main_window)
+        self.rotate_action = QAction(QIcon("icons/rotate.png"), self.title , self.main_window)
         self.rotate_action.setStatusTip("Rotar páginas del PDF")
         self.rotate_action.triggered.connect(self.show_rotation_dialog)
         
@@ -299,11 +302,11 @@ class PDFRotationUIHandler:
             )
             return
         
-        dialog = RotationDialog(self.main_window)
+        dialog = RotationDialog(self.main_window, self.title)
         if dialog.exec_():
             degrees, scope = dialog.get_rotation_params()
             self.apply_rotation(degrees, scope)
-    
+
     def apply_rotation(self, degrees, scope):
         """
         Aplica la rotación al documento según los parámetros.
@@ -314,10 +317,46 @@ class PDFRotationUIHandler:
         """
         success = False
         
+        #revisar si hay que rotar ambos pdf o solo 1
+        if self.rotate_both:
+            if scope == "current":
+                # Rotar solo la página actual
+                current_page = self.secondary_pdf.document_handler.current_page
+                success = self.secondary_pdf.rotator.rotate_page(current_page, degrees)
+
+            else:  # scope == "all"
+                # Rotar todas las páginas
+                success = self.secondary_pdf.rotator.rotate_all_pages(degrees)
+                print("Success",success)
+            
+            if success:
+                # Actualizar la visualización sin guardar
+                if hasattr(self.secondary_pdf.document_handler, 'update_display'):
+                    self.secondary_pdf.document_handler.update_display()
+
+                # Notificar que hay cambios sin guardar
+                self.secondary_pdf.mark_document_as_modified()
+                
+                QMessageBox.information(
+                    self.main_window,
+                    "Rotación aplicada",
+                    f"La rotación de {degrees}° se aplicó correctamente.\n\n"
+                    "Recuerda guardar los cambios con el botón 'Guardar cambios'."
+                )
+                print("Rotacion realizada",degrees)
+            
+            else:
+                QMessageBox.critical(
+                    self.main_window,
+                    "Error",
+                    "No se pudo aplicar la rotación al documento."
+                )
+
         if scope == "current":
             # Rotar solo la página actual
             current_page = self.document_handler.current_page
             success = self.rotator.rotate_page(current_page, degrees)
+
         else:  # scope == "all"
             # Rotar todas las páginas
             success = self.rotator.rotate_all_pages(degrees)

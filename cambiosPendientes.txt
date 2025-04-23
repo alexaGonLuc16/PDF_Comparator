@@ -28,5 +28,6 @@ Pendientes:
 Lunes 21:
 --implementar division del pdf
 
+--Rotar ambas paginas de pdfs(original y anotado) -->Listo
 
---Rotar ambas paginas de pdfs(original y anotado)
+Pendiente: Al habilitar la rotacion simultanea: eliminar uno de los botones de rotacion y dejar solo uno

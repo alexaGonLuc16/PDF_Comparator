@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QPushButton, QFileDialog, QLabel, QCheckBox,
-                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup)
+                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from src.pdf_rotation import PDFRotationUIHandler
 
@@ -251,12 +251,13 @@ class MainWindow(QMainWindow):
         self.view_layout = QHBoxLayout()
         # Visor original (izquierda)
         self.original_viewer = PDFViewer("PDF Original")
-        # Modificar el view_layout para incluir la lista de cambios
-        
+
         # Visor anotado (derecha)
         self.annotated_viewer = PDFViewer("PDF Anotado")
-        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer)
-        
+        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Rotar PDF Anotado")
+
+        self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Rotar PDF Original")
+         
         # Contenedor del visor anotado con el checkbox de círculos
         self.annotated_container = QWidget()
         self.annotated_layout = QVBoxLayout(self.annotated_container)
@@ -272,12 +273,17 @@ class MainWindow(QMainWindow):
         self.toggle_side_by_side.setChecked(False) #por defecto desactivado
         self.toggle_side_by_side.stateChanged.connect(self.toggle_side_by_side_mode)
 
+        self.rotate_both_pdfs = QCheckBox("Rotar ambos pdf")
+        self.rotate_both_pdfs.setChecked(False) #por defecto desactivado
+        self.rotate_both_pdfs.stateChanged.connect(self.rotate_both)
+
         # Añadir el checkbox al layout después de toggle_circles
         checkbox_layout = QHBoxLayout()
         checkbox_layout.addWidget(self.toggle_circles)
         checkbox_layout.addWidget(self.toggle_side_by_side)
+        checkbox_layout.addWidget(self.rotate_both_pdfs)
         self.annotated_layout.addLayout(checkbox_layout)
-        
+
         # Contenedor para la lista de cambios (derecha)
         self.changes_container = QWidget()
         changes_layout = QVBoxLayout(self.changes_container)
@@ -418,6 +424,14 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error durante la limpieza inicial: {e}")
 
+    def rotate_both(self):
+        #Asignar el RotationHandler del pdf original a None 
+        #y solo mantener activo al RotationOriginal
+        if self.rotation_original.rotate_both:
+            self.rotation_original.rotate_both = False
+        else:
+            self.rotation_original.rotate_both = True
+
     def toggle_side_by_side_mode(self, state):
         """Cambia entre modo de un solo visor y dos visores lado a lado."""
         is_side_by_side = (state == Qt.Checked)
@@ -524,6 +538,7 @@ class MainWindow(QMainWindow):
             output_dir = os.path.join(base_dir, 'data', 'output')
             self.original_viewer.load_pdf(file_path)
             self.update_compare_button()
+            self.rotation_original.file_path = file_path
     
     def select_pdf2(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Seleccionar PDF Modificado", "", "PDF Files (*.pdf)")
