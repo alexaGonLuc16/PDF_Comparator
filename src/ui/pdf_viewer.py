@@ -204,6 +204,11 @@ class PDFViewer(QWidget):
                         if distance <= circle['radius']:
                             tooltip_text = f"Cambio {i+1} - Página {self.current_page+1}"
                             break
+                    #visualizar coordenadas del mouse
+                    print("Posicion del mouse x: ", mouse_pos.x(), "---y: ",mouse_pos.y())
+                    page = self.document[self.current_page] # get the page
+                    page.add_highlight_annot((mouse_pos.x(), mouse_pos.y(), mouse_pos.x() + 10.0, mouse_pos.y() + 10.0))
+                    self.render_current_page()
                 
                 QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
             else:
