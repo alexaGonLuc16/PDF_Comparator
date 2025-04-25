@@ -2,9 +2,10 @@ import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                             QWidget, QPushButton, QFileDialog, QLabel, QCheckBox,
-                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar)
+                            QProgressBar, QSpinBox, QGroupBox, QRadioButton,QLineEdit,QButtonGroup, QMenu, QToolBar, QAction, QMessageBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from src.pdf_rotation import PDFRotationUIHandler
+from PyQt5.QtGui import QIcon
+from src.pdf_rotation import PDFRotationUIHandler, RotationDialog
 
 import fitz  # PyMuPDF - importante para la función toggle_circle_visibility
 
@@ -424,13 +425,115 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error durante la limpieza inicial: {e}")
 
-    def rotate_both(self):
-        #Asignar el RotationHandler del pdf original a None 
-        #y solo mantener activo al RotationOriginal
-        if self.rotation_original.rotate_both:
-            self.rotation_original.rotate_both = False
+    def rotate_both(self, state):
+        """Actualiza el estado de rotación conjunta y controla la visibilidad de los botones."""
+        is_checked = (state == Qt.Checked)
+        
+        # Actualizar el estado en los manejadores de rotación
+        if hasattr(self, 'rotation_original') and self.rotation_original:
+            self.rotation_original.rotate_both = is_checked
+            
+            # Mostrar u ocultar el botón del PDF original según el estado
+            if hasattr(self.rotation_original, 'rotate_action'):
+                self.rotation_original.rotate_action.setVisible(not is_checked)
+            
+        if hasattr(self, 'rotation_handler') and self.rotation_handler:
+            self.rotation_handler.rotate_both = is_checked
+            
+            # Ocultar o mostrar el botón de rotación del PDF anotado
+            if hasattr(self.rotation_handler, 'rotate_action'):
+                self.rotation_handler.rotate_action.setVisible(not is_checked)
+        
+        # Crear o mostrar el botón de "Rotar ambos PDFs" si está activado el checkbox
+        if is_checked:
+            # Si ya existe el botón de rotar ambos, solo mostrarlo
+            if hasattr(self, 'rotate_both_action'):
+                self.rotate_both_action.setVisible(True)
+            else:
+                # Crear el botón de rotación para ambos PDFs
+                self.rotate_both_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/rotate.png"), "Rotar ambos PDFs", self)
+                self.rotate_both_action.setStatusTip("Rotar ambos PDFs simultáneamente")
+                self.rotate_both_action.triggered.connect(self.show_both_rotation_dialog)
+                
+                # Añadir a la barra de herramientas
+                toolbar = self.findChild(QToolBar)
+                if toolbar:
+                    toolbar.addAction(self.rotate_both_action)
         else:
-            self.rotation_original.rotate_both = True
+            # Ocultar el botón de rotar ambos si existe
+            if hasattr(self, 'rotate_both_action'):
+                self.rotate_both_action.setVisible(False)
+        
+        # Actualizar la geometría de la barra de herramientas
+        toolbar = self.findChild(QToolBar)
+        if toolbar:
+            toolbar.updateGeometry()
+        
+        print(f"Estado de rotación conjunta: {'Activado' if is_checked else 'Desactivado'}")
+
+    def show_both_rotation_dialog(self):
+        """Muestra el diálogo para rotar ambos PDFs."""
+        # Verificar que ambos visores estén disponibles
+        if (not hasattr(self, 'original_viewer') or not self.original_viewer or 
+            not hasattr(self, 'annotated_viewer') or not self.annotated_viewer):
+            print("Error: No se encuentran los visores de PDF")
+            return
+        
+        # Verificar que ambos documentos estén cargados
+        if (not self.original_viewer.document or not self.annotated_viewer.document):
+            QMessageBox.warning(
+                self,
+                "Advertencia",
+                "Debes abrir ambos documentos PDF primero."
+            )
+            return
+        
+        dialog = RotationDialog(self, "Rotar ambos PDFs")
+        dialog.info_label.setText("Selecciona la rotación para ambos PDFs:")
+        
+        if dialog.exec_():
+            degrees, scope = dialog.get_rotation_params()
+            
+            # Aplicar la rotación a ambos PDFs
+            rotated_original = False
+            rotated_annotated = False
+            
+            # Rotar PDF original
+            if scope == "current":
+                current_page = self.original_viewer.current_page
+                rotated_original = self.rotation_original.rotator.rotate_page(current_page, degrees)
+            else:  # scope == "all"
+                rotated_original = self.rotation_original.rotator.rotate_all_pages(degrees)
+            
+            # Rotar PDF anotado
+            if scope == "current":
+                current_page = self.annotated_viewer.current_page
+                rotated_annotated = self.rotation_handler.rotator.rotate_page(current_page, degrees)
+            else:  # scope == "all"
+                rotated_annotated = self.rotation_handler.rotator.rotate_all_pages(degrees)
+            
+            # Actualizar visualización
+            if rotated_original:
+                self.original_viewer.render_current_page()
+            
+            if rotated_annotated:
+                self.annotated_viewer.render_current_page()
+            
+            # Mostrar mensaje de resultado
+            if rotated_original or rotated_annotated:
+                QMessageBox.information(
+                    self,
+                    "Rotación aplicada",
+                    f"La rotación de {degrees}° se aplicó correctamente a los PDFs.\n\n"
+                    "Recuerda guardar los cambios con el botón 'Guardar cambios'."
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "No se pudo aplicar la rotación a los documentos."
+                )
+
 
     def toggle_side_by_side_mode(self, state):
         """Cambia entre modo de un solo visor y dos visores lado a lado."""

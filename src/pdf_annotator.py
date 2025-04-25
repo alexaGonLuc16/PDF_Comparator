@@ -57,15 +57,6 @@ class PDFAnnotator:
         #for page_index in range(len(doc)): # iterate over pdf pages
             #page = doc[page_index] # get the page
 
-            # search for "schem", results in a list of rectangles
-            # mark all occurrences in one go
-
-            #rects = page.search_for("SCHEM")
-            #Ver mensaje en consola
-            #print("RECTS FOR WORD SCHEM",rects)
-            # mark all occurrences in one go
-            #page.add_highlight_annot(rects)
-
             # insert an image watermark from a file name to fit the page bounds
             #page.insert_image(page.bound(),filename=image_file, overlay=False)
 

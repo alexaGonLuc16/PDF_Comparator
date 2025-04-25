@@ -246,12 +246,12 @@ class PDFRotationUIHandler:
     def setup_ui_elements(self):
         """Configura los elementos de UI para la rotación."""
         # Crear acciones
-        self.rotate_action = QAction(QIcon("icons/rotate.png"), self.title , self.main_window)
+        self.rotate_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/rotate.png"), self.title , self.main_window)
         self.rotate_action.setStatusTip("Rotar páginas del PDF")
         self.rotate_action.triggered.connect(self.show_rotation_dialog)
         
         # Crear acción de guardar (nueva)
-        self.save_action = QAction(QIcon("icons/save.png"), "Guardar cambios", self.main_window)
+        self.save_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/save.png"), "Guardar cambios", self.main_window)
         self.save_action.setStatusTip("Guardar los cambios realizados al PDF")
         self.save_action.triggered.connect(self.save_document)
         
@@ -285,12 +285,10 @@ class PDFRotationUIHandler:
         toolbar = self.main_window.findChild(QToolBar)
         if toolbar:
             toolbar.addAction(self.rotate_action)
-            toolbar.addAction(self.save_action)
         else:
             # Crear una barra de herramientas si no existe
             toolbar = self.main_window.addToolBar("Principal")
             toolbar.addAction(self.rotate_action)
-            toolbar.addAction(self.save_action)
     
     def show_rotation_dialog(self):
         """Muestra el diálogo de rotación."""
@@ -302,7 +300,16 @@ class PDFRotationUIHandler:
             )
             return
         
+        # Verificar si estamos en modo de rotación conjunta
+        dialog_title = "Rotar ambos PDFs" if self.rotate_both else self.title
+        
         dialog = RotationDialog(self.main_window, self.title)
+        # Ajustar mensaje según el modo
+        if self.rotate_both:
+            dialog.info_label.setText("Selecciona la rotación para ambos PDFs:")
+        else:
+            dialog.info_label.setText(f"Selecciona la rotación para {self.title}:")
+
         if dialog.exec_():
             degrees, scope = dialog.get_rotation_params()
             self.apply_rotation(degrees, scope)
@@ -330,21 +337,7 @@ class PDFRotationUIHandler:
                 print("Success",success)
             
             if success:
-                # Actualizar la visualización sin guardar
-                if hasattr(self.secondary_pdf.document_handler, 'update_display'):
-                    self.secondary_pdf.document_handler.update_display()
-
-                # Notificar que hay cambios sin guardar
-                self.secondary_pdf.mark_document_as_modified()
-                
-                QMessageBox.information(
-                    self.main_window,
-                    "Rotación aplicada",
-                    f"La rotación de {degrees}° se aplicó correctamente.\n\n"
-                    "Recuerda guardar los cambios con el botón 'Guardar cambios'."
-                )
-                print("Rotacion realizada",degrees)
-            
+                pass
             else:
                 QMessageBox.critical(
                     self.main_window,
@@ -385,6 +378,10 @@ class PDFRotationUIHandler:
                 "No se pudo aplicar la rotación al documento."
             )
     
+    def set_rotate_both(self, state):
+        """Actualiza el estado de rotación conjunta."""
+        self.rotate_both = state
+
     def save_document(self):
         """Guarda el documento con los cambios aplicados."""
         if not self.document_handler.document:

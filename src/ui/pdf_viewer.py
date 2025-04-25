@@ -175,22 +175,20 @@ class PDFViewer(QWidget):
 
     def eventFilter(self, obj, event):
         """Filtro de eventos para capturar eventos del mouse en el QLabel"""
-        
+        # Convertir coordenadas del mouse a coordenadas del documento
+        dpi_scale = self.dpi / 72
+        zoom_scale = self.zoom_factor
+        total_scale = dpi_scale / zoom_scale
+
         if obj == self.page_label and event.type() == QEvent.MouseMove:
             # Obtener posición del mouse relativa al label
             mouse_pos = event.pos()
 
             # Verificar si el documento está cargado
             if hasattr(self, 'document') and self.document:
-                # Si tenemos un documento, mostrar información de la página
-                tooltip_text = f"Página {self.current_page + 1} de {self.document.page_count}"
-                
+                tooltip_text = ""
                 # Si tenemos círculos en la página actual, verificar si el cursor está sobre alguno
                 if hasattr(self, 'formatted_circles_by_page') and self.current_page in self.formatted_circles_by_page:
-                    # Convertir coordenadas del mouse a coordenadas del documento
-                    dpi_scale = self.dpi / 72
-                    zoom_scale = self.zoom_factor
-                    total_scale = dpi_scale / zoom_scale
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
@@ -231,9 +229,6 @@ class PDFViewer(QWidget):
         
             # Convertir coordenadas del evento a coordenadas relativas al QLabel
             label_pos = self.page_label.mapFrom(self, event.pos())
-            
-            print("mouse en x", label_pos.x())
-            print("mouse en y", label_pos.y())
 
             # Coordenadas ajustadas por scroll
             adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
@@ -368,7 +363,6 @@ class PDFViewer(QWidget):
     
     def navigate_to_change(self, page_num, change):
         """Navega a un cambio específico cuando se selecciona de la lista"""
-        print("Navegando a un cambio especifico ----",change)
         # Cambiar a la página correspondiente si es necesario
         if self.current_page != page_num:
             self.current_page = page_num
@@ -406,48 +400,21 @@ class PDFViewer(QWidget):
         pixmap_width = self.page_label.pixmap().width()
         pixmap_height = self.page_label.pixmap().height()
 
-        print("Page label dim----------------------")
-        print("width",self.page_label.width())
-        print("height",self.page_label.height())
-
         # Calcular la posición del cambio en el pixmap con el zoom actual
         change_x = change['x']
         change_y = change['y']
-
-        print("Change dimensions----------------------")
-        print("En x",change_x)
-        print("En y",change_y)
         
         #calcular scroll
         scroll_x = (change_x / self.page_width)
         scroll_y = (change_y / self.page_height)
 
-        print("Proporcion---------------")
-        print("Calculated scroll x",scroll_x)
-        print("Calculated scroll y",scroll_y)
-
-        print("Scroll bar max values-------------------")
-        print("Width max",self.scroll_area.horizontalScrollBar().maximum())
-        print("Height max",self.scroll_area.verticalScrollBar().maximum())
-
-        print("Scroll bar dimensions------------------")
-        print("Width",self.scroll_area.horizontalScrollBar().width())
-        print("Height",self.scroll_area.verticalScrollBar().height())
-        
         #scroll area dimensions
         h_scroll = self.scroll_area.horizontalScrollBar().width() + self.scroll_area.horizontalScrollBar().maximum()
         v_scroll = self.scroll_area.verticalScrollBar().height() + self.scroll_area.verticalScrollBar().maximum()
-        print("Scroll total dimensions")
-        print("en x: ", h_scroll)
-        print("en y: ", v_scroll)
 
         # Ajustar el scroll para centrar el cambio
         h_value = max(0, int(h_scroll*scroll_x-self.width()/2))
         v_value = max(0, int(v_scroll*scroll_y-self.height()/2))
-
-        print("Scroll")
-        print("en x: ", h_value)
-        print("en y: ", v_value)
         
         # Limitar los valores de scroll a los máximos permitidos
         h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
@@ -630,9 +597,6 @@ class PDFViewer(QWidget):
     def set_circles(self, circles_by_page, page_width, page_height):
         self.page_width = page_width
         self.page_height = page_height
-
-        print("Page width", self.page_width)
-        print("Page height", self.page_height)
 
         """Establece los círculos detectados por página."""
         self.circles_by_page = circles_by_page
