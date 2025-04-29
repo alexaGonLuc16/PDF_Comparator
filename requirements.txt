@@ -18,3 +18,5 @@ pyqt5>=5.15.0
 
 # Pillow para el procesamiento de imágenes
 pillow>=8.0.0
+
+pdf2docx>=0.5.8

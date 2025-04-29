@@ -392,13 +392,13 @@ class PDFRotationUIHandler:
             )
             return
         
-        if not self.rotator.has_unsaved_changes:
-            QMessageBox.information(
-                self.main_window,
-                "Información",
-                "No hay cambios pendientes para guardar."
-            )
-            return
+        #if not self.rotator.has_unsaved_changes:
+        #    QMessageBox.information(
+        #        self.main_window,
+        #        "Información",
+        #        "No hay cambios pendientes para guardar."
+        #    )
+        #    return
         
         # Preguntar si quiere sobrescribir o guardar como
         reply = QMessageBox.question(

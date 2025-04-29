@@ -52,15 +52,6 @@ class PDFAnnotator:
         
         # Guardar documento
         doc.save(output_pdf)
-        image_file = "C:/PDF_Comparator/src/client_waterm.png"
-        
-        #for page_index in range(len(doc)): # iterate over pdf pages
-            #page = doc[page_index] # get the page
-
-            # insert an image watermark from a file name to fit the page bounds
-            #page.insert_image(page.bound(),filename=image_file, overlay=False)
-
-        #doc.save("C:/PDF_Comparator/src/watermarked-document.pdf") # save the document with a new filename
         doc.close()
         
         return output_pdf

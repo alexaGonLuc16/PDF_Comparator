@@ -84,4 +84,6 @@ class PDFProcessor:
             return output_path
         except Exception as e:
             print(f"No se pudo reparar el PDF: {e}")
-            return None
+            return 
+        
+    

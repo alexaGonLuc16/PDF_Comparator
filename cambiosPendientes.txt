@@ -31,3 +31,4 @@ Lunes 21:
 --Rotar ambas paginas de pdfs(original y anotado) -->Listo
 
 Pendiente: Al habilitar la rotacion simultanea: eliminar uno de los botones de rotacion y dejar solo uno
+--Ajustar subrayado cuando se hace zoom, pues aun esta desfasado
