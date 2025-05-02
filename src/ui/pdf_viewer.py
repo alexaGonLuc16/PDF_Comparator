@@ -71,12 +71,15 @@ class OpacityDialog(QDialog):
         return self.opacity_value / 100.0
 
 class ChangesListWidget(QWidget):
-    change_selected = pyqtSignal(int, dict, bool)  # Página, cambio, activado
-    
+    change_selected = pyqtSignal(int, dict)  # Página, cambio, activado
+    circle_selected = pyqtSignal(int, dict, bool)  # Página, cambio, activado   #signal to desapear a circle
+    update_annotations_sig = pyqtSignal(int, list)# Página, updated annotations  #signal to desapear a circle
+
     def __init__(self, parent=None):
         super(ChangesListWidget, self).__init__(parent)
         self.changes_by_page = {}
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
+        self.formatted_circles_by_page = {}
         self.init_ui()
     
     def init_ui(self):
@@ -140,17 +143,26 @@ class ChangesListWidget(QWidget):
                 if column == 1:
                     is_checked = item.checkState(1) == 2
                     change["selected"] = is_checked
-                    self.change_selected.emit(page_num, change, is_checked)
+                    #self.change_selected.emit(page_num, change)
+                    #self.change_selected.emit(page_num, change, is_checked)
+                    print("click en checkbox")
+                    print("Change_selected:",change,"-=-----------")
+                    self.circle_selected.emit(page_num, change, is_checked)
+                    self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
+
+                    #agregar activador a funcion a label_mouse_press_event de pdf viewer
                 else:
                     # Si se hizo clic en el nombre, navegar al cambio
-                    self.change_selected.emit(page_num, change, change.get("selected", True))
+                    #self.change_selected.emit(page_num, change, change.get("selected", True))
+                    self.change_selected.emit(page_num, change)
         
         # Si se hace clic en un elemento de página, expandir/contraer
         elif data["type"] == "page" and column == 0:
             item.setExpanded(not item.isExpanded())
 
 class PDFViewer(QWidget):
-    circle_clicked = pyqtSignal(int, dict)  # Señal para comunicar clics
+    circle_clicked = pyqtSignal(int, dict,bool)  # Señal para comunicar clics
+    update_annotations = pyqtSignal(int, list)  # Página, cambios
 
     def __init__(self, title="PDF Viewer"):
         super(PDFViewer, self).__init__()
@@ -249,10 +261,17 @@ class PDFViewer(QWidget):
         layout.addLayout(watermark_layout)  # Añadir el nuevo layout
         
         # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "PDF Anotado" in self.title and self.current_page > 0:
+        if "PDF Anotado" in self.title:
             print("Inicializando lista de cambios para el PDF Anotado")
+            print("------------------------------------------------------------------------------------")
             self.changes_list_widget = ChangesListWidget(self)
             self.changes_list_widget.change_selected.connect(self.navigate_to_change)
+            self.changes_list_widget.circle_selected.connect(self.modify_annotations)
+            self.changes_list_widget.update_annotations_sig.connect(self.send_annotations)
+
+    def send_annotations(self, page_num, updated_annotations):
+        print("Printing annotations")
+        self.update_annotations.emit(page_num, updated_annotations)
 
     def select_watermark_image(self):
         """Abre un diálogo para seleccionar una imagen y su opacidad"""
@@ -815,6 +834,7 @@ class PDFViewer(QWidget):
     
     def navigate_to_change(self, page_num, change):
         """Navega a un cambio específico cuando se selecciona de la lista"""
+        print("change:",change,"--------------------->navigating to change")
         # Cambiar a la página correspondiente si es necesario
         if self.current_page != page_num:
             self.current_page = page_num
@@ -881,7 +901,7 @@ class PDFViewer(QWidget):
         pos = event.pos()
         print("Label Press event")
         print(f"Click en QLabel (sin desplazamiento): {pos}")
-        
+
         # Si es botón izquierdo y estamos en PDF anotado, iniciar subrayado
         if event.button() == Qt.LeftButton and not self.showing_original and self.document:
             print("Iniciando modo subrayado")
@@ -911,6 +931,11 @@ class PDFViewer(QWidget):
             
             self.highlight_overlay.setGeometry(QRect(pos, QSize()))
             self.highlight_overlay.show()
+
+        page_num, clicked_circle = self.detect_circle_click(pos)
+        if clicked_circle:
+            print("Clicked circle:", clicked_circle,"--------------------------------")
+            self.circle_clicked.emit(page_num, clicked_circle, clicked_circle["selected"])
 
     def set_clicks_enabled(self, enabled):
         #habilita o desabilita la deteccion de clicks en circulos
@@ -1032,40 +1057,48 @@ class PDFViewer(QWidget):
             # Usar estas coordenadas para detectar clics
             page_num, clicked_circle = self.detect_circle_click(label_pos)
             if clicked_circle:
-                self.circle_clicked.emit(page_num, clicked_circle)
+                self.circle_clicked.emit(page_num, clicked_circle, clicked_circle["selected"])
         
         # Propagar el evento para otros casos
         super(PDFViewer, self).mousePressEvent(event)
 
-    def modify_annotations(self, page_num, clicked_circle, is_checked=None):
-        """Modifica las anotaciones al hacer clic en un círculo."""
+    def modify_annotations(self, page_num, clicked_circle, is_checked):
+        print(f"modify_annotations llamado - Página: {page_num}, Círculo: {clicked_circle}, Checked: {is_checked}")
+        
         if not hasattr(self, 'formatted_circles_by_page') or page_num not in self.formatted_circles_by_page:
+            print("No hay círculos formateados para esta página")
             return []
 
         updated_annotations = []
 
         for circle in self.formatted_circles_by_page[page_num]:
-            if circle == clicked_circle:
+            # Comparar si el círculo actual es el que fue clicado
+            # Es mejor comparar coordenadas específicas en lugar del objeto completo
+            if (circle['x'] == clicked_circle['x'] and 
+                circle['y'] == clicked_circle['y'] and 
+                circle['radius'] == clicked_circle['radius']):
+                
                 # Modificar el círculo
                 modified_circle = circle.copy()
-                
-                # Si se proporciona un valor explícito para is_checked, usarlo
-                if is_checked is not None:
-                    modified_circle["selected"] = is_checked
-                else:
-                    # De lo contrario, alternar el estado actual
-                    modified_circle["selected"] = not circle.get("selected", True)
-                    
+                modified_circle["selected"] = is_checked
                 updated_annotations.append(modified_circle)
-                print(f"Círculo en página {page_num} - Selected: {modified_circle['selected']}")
+                print(f"Círculo en página {page_num} modificado - Selected: {is_checked}")
             else:
                 updated_annotations.append(circle)
 
         # Guardar los cambios en la estructura de datos
         self.formatted_circles_by_page[page_num] = updated_annotations
+        self.changes_list_widget.formatted_circles_by_page[page_num] = updated_annotations
         
+        # Actualizar la visualización después de la modificación
+        self.reload_page()
+        
+        # Actualizar la lista de cambios para reflejar el nuevo estado
+        if self.changes_list_widget:
+            self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
+            
         return updated_annotations
-        
+
     def detect_circle_click(self, pos):
         if self.current_page not in self.formatted_circles_by_page:
             print("No hay círculos en esta página.")
@@ -1087,7 +1120,7 @@ class PDFViewer(QWidget):
             distance = sqrt((scaled_x - circle['x'])**2 + (scaled_y - circle['y'])**2)
 
             if distance <= scaled_radius:
-                print("¡Click dentro del círculo!")
+                print("¡Click dentro del círculo!",circle)
                 return self.current_page, circle
             
         print(f"Click en: {pos.x()}, {pos.y()}")
@@ -1124,12 +1157,6 @@ class PDFViewer(QWidget):
         if self.has_changes_list() and self.current_page in self.formatted_circles_by_page:
             print("formatted_circles",self.formatted_circles_by_page,">>>>>>>>>>>>>>>>>>>>>>>")
             self.changes_list_widget.update_changes_list(self.formatted_circles_by_page)
-            
-        # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "PDF Anotado" in self.title and self.current_page >= 0:
-            print("Inicializando lista de cambios para el PDF Anotado")
-            self.changes_list_widget = ChangesListWidget(self)
-            self.changes_list_widget.change_selected.connect(self.navigate_to_change)
             
         self.render_current_page()
         self.update_page_info()

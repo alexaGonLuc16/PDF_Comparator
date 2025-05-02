@@ -318,6 +318,7 @@ class MainWindow(QMainWindow):
         # Flag para habilitar circle_click event
         self.circle_clicked_flag = False
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
+        self.annotated_viewer.update_annotations.connect(self.update_annotations)
         self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
 
         print("UI de MainWindow inicializada")
@@ -353,7 +354,7 @@ class MainWindow(QMainWindow):
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
         
         # Modificación del círculo si es necesario o actualización
-        self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle)
+        self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle, clicked_circle["selected"])
         
         # Llamar a update_annotations para reflejar cambios
         self.update_annotations(page_num, self.updated_annotations)
