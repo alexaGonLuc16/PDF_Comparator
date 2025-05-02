@@ -934,8 +934,12 @@ class PDFViewer(QWidget):
 
         page_num, clicked_circle = self.detect_circle_click(pos)
         if clicked_circle:
-            print("Clicked circle:", clicked_circle,"--------------------------------")
-            self.circle_clicked.emit(page_num, clicked_circle, clicked_circle["selected"])
+            if clicked_circle["selected"]:
+                new_state = False
+            else:
+                new_state = True
+            print("Clicked circle:", clicked_circle,"------------------new state", new_state)
+            self.circle_clicked.emit(page_num, clicked_circle, new_state)
 
     def set_clicks_enabled(self, enabled):
         #habilita o desabilita la deteccion de clicks en circulos

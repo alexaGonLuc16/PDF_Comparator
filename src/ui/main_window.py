@@ -349,17 +349,18 @@ class MainWindow(QMainWindow):
         # 4. Establecer una variable interna para preguntar al cerrar
         self.document_modified = True
 
-    def handle_circle_click(self, page_num, clicked_circle):
+    def handle_circle_click(self, page_num, clicked_circle, new_state):
         """Maneja clics en círculos para actualizar anotaciones."""
         print(f"Círculo clickeado en página {page_num}: {clicked_circle}")
         
         # Modificación del círculo si es necesario o actualización
-        self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle, clicked_circle["selected"])
+        self.updated_annotations = self.annotated_viewer.modify_annotations(page_num, clicked_circle, new_state)
         
         # Llamar a update_annotations para reflejar cambios
         self.update_annotations(page_num, self.updated_annotations)
     
     def update_annotations(self, page_num, new_annotations, dpi=300):
+        print("update_annotations llamado")
         """Actualiza las anotaciones del PDF según las modificaciones del usuario."""
         if not hasattr(self.annotated_viewer, 'document') or not self.annotated_viewer.document:
             print("No hay un documento cargado en annotated_viewer.")
