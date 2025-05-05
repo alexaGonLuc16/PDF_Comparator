@@ -446,7 +446,7 @@ class PDFViewer(QWidget):
                 
                 # Actualizar posición final
                 self.highlight_end = (adjusted_x, adjusted_y)
-                print(f"Movimiento de subrayado a: {self.highlight_end}")
+                #print(f"Movimiento de subrayado a: {self.highlight_end}")
         
         # Manejar liberación de mouse durante subrayado
         elif event.type() == QEvent.MouseButtonRelease and self.highlighting and self.document:
@@ -464,7 +464,7 @@ class PDFViewer(QWidget):
                 
                 # Guardar la posición final
                 self.highlight_end = (adjusted_x, adjusted_y)
-                print(f"Final de subrayado en: {self.highlight_end}")
+                #print(f"Final de subrayado en: {self.highlight_end}")
                 
                 # Aplicar el subrayado
                 self.apply_highlight()
@@ -510,7 +510,7 @@ class PDFViewer(QWidget):
         """Maneja el movimiento del mouse sobre el visor de PDF"""
         # Si estamos en modo subrayado
         if hasattr(self, 'highlighting') and self.highlighting and self.document and hasattr(self, 'highlight_start_pixels'):
-            print("Moviendo en modo subrayado")
+            #print("Moviendo en modo subrayado")
             
             # Convertir coordenadas para el rubber band
             label_pos = self.page_label.mapFrom(self, event.pos())
@@ -527,7 +527,7 @@ class PDFViewer(QWidget):
             x, y = adjusted_x, adjusted_y
             self.highlight_end_pdf = (x, y)
             
-            print(f"Movimiento de subrayado a coords PDF: {self.highlight_end_pdf}")
+            #print(f"Movimiento de subrayado a coords PDF: {self.highlight_end_pdf}")
         
         # Código existente para tooltips
         # Solo procesar si tenemos documentos cargados
@@ -574,12 +574,22 @@ class PDFViewer(QWidget):
             
             # Convertir coordenadas para el punto final
             label_pos = self.page_label.mapFrom(self, event.pos())
-            adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
-            adjusted_y = label_pos.y() + self.scroll_area.verticalScrollBar().value()
+            print("Label_pos", label_pos)
+            pos = event.pos()
+            print("Event Pos", pos)
+            print("Debugging scroll area")
             
+            print("Vertical",self.scroll_area.verticalScrollBar().value())
+            print("Horizontal",self.scroll_area.horizontalScrollBar().value())
+            adjusted_x = label_pos.x() #+ self.scroll_area.horizontalScrollBar().value()
+            adjusted_y = label_pos.y() #+ self.scroll_area.verticalScrollBar().value()
+
             x, y = adjusted_x, adjusted_y
             self.highlight_end_pdf = (x, y)
-            
+                        
+            print("Highlight_start",self.highlight_start_pdf)
+            print("Highlight_end",self.highlight_end_pdf)
+
             print(f"Final de subrayado en coords PDF: {self.highlight_end_pdf}")
             
             # Aplicar el subrayado
@@ -602,21 +612,6 @@ class PDFViewer(QWidget):
         x0, y0 = self.highlight_start_pdf
         x1, y1 = self.highlight_end_pdf
         
-        # Detectar si la ventana está maximizada
-        is_maximized = self.window().isMaximized()
-        
-        # Calcula un offset dinámico basado en el ancho de la ventana
-        window_width = self.window().width()
-        offset_x = window_width * 0.02 if is_maximized else 0  # 2% del ancho de la ventana
-            
-        # Aplicar el offset
-        x0 -= offset_x
-        x1 -= offset_x
-        
-        # Asegurarse que los valores están en orden
-        x0, x1 = sorted([x0, x1])
-        y0, y1 = sorted([y0, y1])
-        
         # Obtener información de la página y la transformación
         page_rect = page.rect  # Rectángulo de la página en coordenadas de PDF
         
@@ -638,10 +633,13 @@ class PDFViewer(QWidget):
         pdf_x1 = x1 * x_ratio
         pdf_y1 = y1 * y_ratio
         
+        print("x_ratio", x_ratio)
+        print("y_ratio", y_ratio)
+
         # Crear rectángulo en coordenadas de PDF
-        rect = fitz.Rect(pdf_x0, pdf_y0, pdf_x1, pdf_y1 + 5)
+        rect = fitz.Rect(pdf_x0, pdf_y0, pdf_x1, pdf_y1)
         
-        print(f"Ventana maximizada: {is_maximized}, Offset aplicado: {offset_x}")
+        #print(f"Ventana maximizada: {is_maximized}, Offset aplicado: {offset_x}")
         print(f"Coords pantalla (ajustadas): ({x0}, {y0}) a ({x1}, {y1})")
         print(f"Coords PDF: ({pdf_x0}, {pdf_y0}) a ({pdf_x1}, {pdf_y1})")
         print(f"Rectángulo PDF: {rect}")
@@ -915,8 +913,8 @@ class PDFViewer(QWidget):
             
             # Convertir a coordenadas del PDF
             # Nota: necesitamos ajustar por el desplazamiento del scroll
-            adjusted_x = pos.x() + self.scroll_area.horizontalScrollBar().value()
-            adjusted_y = pos.y() + self.scroll_area.verticalScrollBar().value()
+            adjusted_x = pos.x() #+ self.scroll_area.horizontalScrollBar().value()
+            adjusted_y = pos.y() #+ self.scroll_area.verticalScrollBar().value()
             
             # Guardar la posición exacta en coordenadas de PDF
             x, y = adjusted_x, adjusted_y
@@ -1021,7 +1019,7 @@ class PDFViewer(QWidget):
         self.page_label.setPixmap(pixmap)
         self.page_label.resize(pixmap.size())
 
-
+    '''
     def mousePressEvent(self, event):
         """Maneja el evento de presionar el botón del mouse"""
         print("mousePressEvent - Botón:", event.button(), "- PDF original:", self.showing_original)
@@ -1064,11 +1062,11 @@ class PDFViewer(QWidget):
                 self.circle_clicked.emit(page_num, clicked_circle, clicked_circle["selected"])
         
         # Propagar el evento para otros casos
-        super(PDFViewer, self).mousePressEvent(event)
+        super(PDFViewer, self).mousePressEvent(event)'''
 
     def modify_annotations(self, page_num, clicked_circle, is_checked):
         print(f"modify_annotations llamado - Página: {page_num}, Círculo: {clicked_circle}, Checked: {is_checked}")
-        
+    
         if not hasattr(self, 'formatted_circles_by_page') or page_num not in self.formatted_circles_by_page:
             print("No hay círculos formateados para esta página")
             return []
@@ -1115,8 +1113,8 @@ class PDFViewer(QWidget):
         for circle in self.formatted_circles_by_page[self.current_page]:
             scaled_x = pos.x() * total_scale
             scaled_y = pos.y() * total_scale
-            print("circulo en x", circle['x']," - circulo en y", circle['y'])
-            print("Scaled x", scaled_x," - Scaled y", scaled_y)
+            #print("circulo en x", circle['x']," - circulo en y", circle['y'])
+            #print("Scaled x", scaled_x," - Scaled y", scaled_y)
 
             scaled_radius = circle['radius']
 

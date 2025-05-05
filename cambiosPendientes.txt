@@ -32,3 +32,5 @@ Lunes 21:
 
 Pendiente: Al habilitar la rotacion simultanea: eliminar uno de los botones de rotacion y dejar solo uno
 --Ajustar subrayado cuando se hace zoom, pues aun esta desfasado
+
+Actualizaciones: con ventana maximizada el subrayado ya funciona
