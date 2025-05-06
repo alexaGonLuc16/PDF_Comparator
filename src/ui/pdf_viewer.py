@@ -446,7 +446,6 @@ class PDFViewer(QWidget):
                 
                 # Actualizar posición final
                 self.highlight_end = (adjusted_x, adjusted_y)
-                #print(f"Movimiento de subrayado a: {self.highlight_end}")
         
         # Manejar liberación de mouse durante subrayado
         elif event.type() == QEvent.MouseButtonRelease and self.highlighting and self.document:
@@ -464,7 +463,6 @@ class PDFViewer(QWidget):
                 
                 # Guardar la posición final
                 self.highlight_end = (adjusted_x, adjusted_y)
-                #print(f"Final de subrayado en: {self.highlight_end}")
                 
                 # Aplicar el subrayado
                 self.apply_highlight()
@@ -496,11 +494,6 @@ class PDFViewer(QWidget):
                         if distance <= circle['radius']:
                             tooltip_text = f"Cambio {i+1} - Página {self.current_page+1}"
                             break
-                    
-                    # IMPORTANTE: Comentar estas líneas para evitar subrayados automáticos
-                    # page = self.document[self.current_page]
-                    # page.add_highlight_annot((mouse_pos.x(), mouse_pos.y(), mouse_pos.x() + 10.0, mouse_pos.y() + 10.0))
-                    # self.render_current_page()
                 
                 QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
                 
@@ -510,7 +503,6 @@ class PDFViewer(QWidget):
         """Maneja el movimiento del mouse sobre el visor de PDF"""
         # Si estamos en modo subrayado
         if hasattr(self, 'highlighting') and self.highlighting and self.document and hasattr(self, 'highlight_start_pixels'):
-            #print("Moviendo en modo subrayado")
             
             # Convertir coordenadas para el rubber band
             label_pos = self.page_label.mapFrom(self, event.pos())
@@ -526,8 +518,6 @@ class PDFViewer(QWidget):
             
             x, y = adjusted_x, adjusted_y
             self.highlight_end_pdf = (x, y)
-            
-            #print(f"Movimiento de subrayado a coords PDF: {self.highlight_end_pdf}")
         
         # Código existente para tooltips
         # Solo procesar si tenemos documentos cargados
@@ -606,26 +596,42 @@ class PDFViewer(QWidget):
             print("No hay coordenadas de subrayado.")
             return
         
-        page = self.document[self.current_page]
-        
-        # Obtener coordenadas en píxeles
-        x0, y0 = self.highlight_start_pdf
-        x1, y1 = self.highlight_end_pdf
-        
         # Obtener información de la página y la transformación
+        page = self.document[self.current_page]
         page_rect = page.rect  # Rectángulo de la página en coordenadas de PDF
-        
-        # Calculamos factores de escala
-        dpi_scale = self.dpi / 72.0
-        zoom_scale = self.zoom_factor
         
         # Obtener el tamaño del pixmap actual para comprender la relación entre pantalla y PDF
         pixmap_width = self.page_label.pixmap().width()
         pixmap_height = self.page_label.pixmap().height()
+
+        current_rotation = page.rotation
         
+        #width difference
+        #diff = pixmap_width / page_rect.height
+        #pixmap_width = pixmap_width / diff        
+
+        if current_rotation == 0:
+            # Obtener coordenadas en píxeles
+            x0, y0 = self.highlight_start_pdf
+            x1, y1 = self.highlight_end_pdf
+        elif current_rotation == 90:
+            x0, y0 = self.highlight_start_pdf[1], page_rect.width - self.highlight_end_pdf[0]
+            x1, y1 = self.highlight_end_pdf[1], page_rect.width - self.highlight_start_pdf[0]
+        elif current_rotation == 180:
+            x0, y0 = page_rect.width - self.highlight_end_pdf[0], page_rect.height - self.highlight_end_pdf[1]
+            x1, y1 = page_rect.width - self.highlight_start_pdf[0], page_rect.height - self.highlight_start_pdf[1]
+        elif current_rotation == 270:
+            x0, y0 = page_rect.height - self.highlight_end_pdf[1], self.highlight_start_pdf[0]
+            x1, y1 = page_rect.height - self.highlight_start_pdf[1], self.highlight_end_pdf[0]
+
+        print("x0",x0)
+        print("y0",y0)
+        print("x1",x1)
+        print("y1",y1)
+
         # Calcular relación entre pixmap y PDF
-        x_ratio = page_rect.width / pixmap_width * zoom_scale
-        y_ratio = page_rect.height / pixmap_height * zoom_scale
+        x_ratio = page_rect.width / pixmap_width
+        y_ratio = page_rect.height / pixmap_height 
         
         # Convertir de coordenadas de pantalla a coordenadas de PDF
         pdf_x0 = x0 * x_ratio
@@ -1018,51 +1024,6 @@ class PDFViewer(QWidget):
         # Mostrar en el label
         self.page_label.setPixmap(pixmap)
         self.page_label.resize(pixmap.size())
-
-    '''
-    def mousePressEvent(self, event):
-        """Maneja el evento de presionar el botón del mouse"""
-        print("mousePressEvent - Botón:", event.button(), "- PDF original:", self.showing_original)
-        
-        # Si es botón izquierdo y no estamos en modo de mostrar original, iniciar subrayado
-        if event.button() == Qt.LeftButton and not self.showing_original and self.document:
-            print("Iniciando modo subrayado")
-            self.highlighting = True
-            
-            # Convertir coordenadas a relativas al QLabel
-            label_pos = self.page_label.mapFrom(self, event.pos())
-            
-            # Ajustar por desplazamiento del ScrollArea
-            adjusted_x = label_pos.x() + self.scroll_area.horizontalScrollBar().value()
-            adjusted_y = label_pos.y() + self.scroll_area.verticalScrollBar().value()
-            
-            # Guardar la posición inicial
-            self.highlight_start = (adjusted_x, adjusted_y)
-            print(f"Inicio de subrayado en: {self.highlight_start}")
-            # Importante: No usar return aquí, deja que se propague el evento
-        
-        # Código existente para detección de círculos (solo para PDF original)
-        if self.showing_original:
-            # Obtener las coordenadas relativas al PDFViewer
-            viewer_pos = event.pos()
-            print("Mouse Press event")
-            # Convertir a coordenadas relativas al QLabel (page_label)
-            label_pos = self.page_label.mapFrom(self, viewer_pos)
-            
-            # Ajustar por desplazamiento del ScrollArea
-            label_pos.setX(label_pos.x() + self.scroll_area.horizontalScrollBar().value())
-            label_pos.setY(label_pos.y() + self.scroll_area.verticalScrollBar().value())
-            
-            print("Posición en viewer:", viewer_pos)
-            print("Posición en label:", label_pos)
-            
-            # Usar estas coordenadas para detectar clics
-            page_num, clicked_circle = self.detect_circle_click(label_pos)
-            if clicked_circle:
-                self.circle_clicked.emit(page_num, clicked_circle, clicked_circle["selected"])
-        
-        # Propagar el evento para otros casos
-        super(PDFViewer, self).mousePressEvent(event)'''
 
     def modify_annotations(self, page_num, clicked_circle, is_checked):
         print(f"modify_annotations llamado - Página: {page_num}, Círculo: {clicked_circle}, Checked: {is_checked}")
