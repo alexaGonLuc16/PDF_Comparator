@@ -74,12 +74,14 @@ class ChangesListWidget(QWidget):
     change_selected = pyqtSignal(int, dict)  # Página, cambio, activado
     circle_selected = pyqtSignal(int, dict, bool)  # Página, cambio, activado   #signal to desapear a circle
     update_annotations_sig = pyqtSignal(int, list)# Página, updated annotations  #signal to desapear a circle
+    change_description_edited = pyqtSignal(int, int, str)  # Página, índice, nuevo texto
 
     def __init__(self, parent=None):
         super(ChangesListWidget, self).__init__(parent)
         self.changes_by_page = {}
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.formatted_circles_by_page = {}
+        self.changes_description = [] #lsta con descripciones de los cambios
         self.init_ui()
     
     def init_ui(self):
@@ -92,6 +94,10 @@ class ChangesListWidget(QWidget):
         self.changes_tree.setColumnWidth(0, 150)
         self.changes_tree.itemClicked.connect(self.on_item_clicked)
         
+        # Habilitar edición de elementos
+        self.changes_tree.setEditTriggers(QTreeWidget.DoubleClicked | QTreeWidget.EditKeyPressed)
+        self.changes_tree.itemChanged.connect(self.on_item_edited)
+
         #layout.addWidget(title_label)
         layout.addWidget(self.changes_tree)
     
@@ -102,28 +108,53 @@ class ChangesListWidget(QWidget):
             print("Error: changes_tree no está inicializado")
             return
 
+        # Guardar el estado expandido de los elementos
+        expanded_states = {}
+        for i in range(self.changes_tree.topLevelItemCount()):
+            item = self.changes_tree.topLevelItem(i)
+            data = item.data(0, 256)
+            if data and "page" in data:
+                expanded_states[data["page"]] = item.isExpanded()
+
+        # Desconectar temporalmente la señal para evitar activaciones durante la actualización
+        self.changes_tree.itemChanged.disconnect(self.on_item_edited)
+
         self.changes_tree.clear()
         self.changes_by_page = formatted_circles_by_page
         
         # Crear un elemento en el árbol para cada página con cambios
         for page_num, changes in sorted(formatted_circles_by_page.items()):
+            self.changes_description = changes
             if changes:
                 page_item = QTreeWidgetItem(self.changes_tree)
                 page_item.setText(0, f"Página {page_num + 1} ({len(changes)} cambios)")
-                page_item.setData(0, 256 , {"type": "page", "page": page_num})
+                page_item.setData(0, 256, {"type": "page", "page": page_num})
                 
                 # Crear sub-elementos para cada cambio en la página
                 for i, change in enumerate(changes):
                     change_item = QTreeWidgetItem(page_item)
-                    change_item.setText(0, f"Cambio {i+1}")
+                    # Usar descripción personalizada si existe, de lo contrario usar el texto predeterminado
+                    display_text = change.get("description", f"Cambio {i+1}")
+                    change_item.setText(0, display_text)
                     change_item.setData(0, 256, {"type": "change", "page": page_num, "index": i})
+                    
+                    # Hacer que el texto sea editable
+                    change_item.setFlags(change_item.flags() | Qt.ItemIsEditable)
                     
                     # Agregar checkbox para activar/desactivar
                     change_item.setCheckState(1, 2 if change.get("selected", True) else 0)
         
-        # Expandir el primer nivel
+        # Restaurar los estados de expansión
         for i in range(self.changes_tree.topLevelItemCount()):
-            self.changes_tree.topLevelItem(i).setExpanded(True)
+            item = self.changes_tree.topLevelItem(i)
+            data = item.data(0, 256)
+            if data and "page" in data and data["page"] in expanded_states:
+                item.setExpanded(expanded_states[data["page"]])
+            else:
+                item.setExpanded(True)  # Por defecto expandir si no hay estado guardado
+        
+        # Reconectar la señal
+        self.changes_tree.itemChanged.connect(self.on_item_edited)
     
     def on_item_clicked(self, item, column):
         """Maneja el clic en un elemento del árbol"""
@@ -143,23 +174,46 @@ class ChangesListWidget(QWidget):
                 if column == 1:
                     is_checked = item.checkState(1) == 2
                     change["selected"] = is_checked
-                    #self.change_selected.emit(page_num, change)
-                    #self.change_selected.emit(page_num, change, is_checked)
                     print("click en checkbox")
-                    print("Change_selected:",change,"-=-----------")
+                    print("Change_selected:", change, "-=-----------")
                     self.circle_selected.emit(page_num, change, is_checked)
                     self.update_annotations_sig.emit(page_num, self.formatted_circles_by_page[page_num])
-
-                    #agregar activador a funcion a label_mouse_press_event de pdf viewer
                 else:
                     # Si se hizo clic en el nombre, navegar al cambio
-                    #self.change_selected.emit(page_num, change, change.get("selected", True))
                     self.change_selected.emit(page_num, change)
         
         # Si se hace clic en un elemento de página, expandir/contraer
         elif data["type"] == "page" and column == 0:
             item.setExpanded(not item.isExpanded())
 
+    def on_item_edited(self, item, column):
+        """Maneja la edición de texto de un elemento"""
+        # Solo procesar ediciones en la columna 0 (texto) y para elementos de tipo "change"
+        if column != 0:
+            return
+            
+        data = item.data(0, 256)
+        if not data or data["type"] != "change":
+            return
+            
+        page_num = data["page"]
+        change_idx = data["index"]
+        new_text = item.text(0)
+        
+        print(f"Texto editado: Página {page_num}, Cambio {change_idx}, Nuevo texto: {new_text}")
+        
+        # Actualizar la descripción en el objeto de cambio
+        if page_num in self.changes_by_page and change_idx < len(self.changes_by_page[page_num]):
+            change = self.changes_by_page[page_num][change_idx]
+            change["description"] = new_text
+            
+            # Emitir señal para notificar sobre el cambio de descripción
+            self.change_description_edited.emit(page_num, change_idx, new_text)
+            
+            # También actualizar en el formatted_circles_by_page si existe
+            if page_num in self.formatted_circles_by_page and change_idx < len(self.formatted_circles_by_page[page_num]):
+                self.formatted_circles_by_page[page_num][change_idx]["description"] = new_text
+                
 class PDFViewer(QWidget):
     circle_clicked = pyqtSignal(int, dict,bool)  # Señal para comunicar clics
     update_annotations = pyqtSignal(int, list)  # Página, cambios
@@ -492,7 +546,7 @@ class PDFViewer(QWidget):
                         
                         # Si la distancia es menor o igual al radio, el cursor está sobre el círculo
                         if distance <= circle['radius']:
-                            tooltip_text = f"Cambio {i+1} - Página {self.current_page+1}"
+                            tooltip_text = self.changes_list_widget.changes_description[i].get("description", f"Cambio {i+1}")
                             break
                 
                 QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
