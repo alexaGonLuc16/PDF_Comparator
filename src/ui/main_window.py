@@ -123,14 +123,14 @@ class MainWindow(QMainWindow):
         self.config_layout = QHBoxLayout()
         
         # Selección de archivos
-        file_group = QGroupBox("Selección de archivos")
+        file_group = QGroupBox("Choose the files")
         file_layout = QVBoxLayout(file_group)
         
         # PDF original
         pdf1_layout = QHBoxLayout()
-        self.pdf1_label = QLabel("PDF Original:")
-        self.pdf1_path = QLabel("No seleccionado")
-        self.pdf1_button = QPushButton("Seleccionar")
+        self.pdf1_label = QLabel("Original PDF:")
+        self.pdf1_path = QLabel("not selected")
+        self.pdf1_button = QPushButton("Upload file")
         self.pdf1_button.clicked.connect(self.select_pdf1)
         
         pdf1_layout.addWidget(self.pdf1_label)
@@ -139,9 +139,9 @@ class MainWindow(QMainWindow):
         
         # PDF modificado
         pdf2_layout = QHBoxLayout()
-        self.pdf2_label = QLabel("PDF Modificado:")
-        self.pdf2_path = QLabel("No seleccionado")
-        self.pdf2_button = QPushButton("Seleccionar")
+        self.pdf2_label = QLabel("Modified version:")
+        self.pdf2_path = QLabel("not selected")
+        self.pdf2_button = QPushButton("Upload file")
         self.pdf2_button.clicked.connect(self.select_pdf2)
         
         pdf2_layout.addWidget(self.pdf2_label)
@@ -150,9 +150,9 @@ class MainWindow(QMainWindow):
         
         # Guardar como
         save_layout = QHBoxLayout()
-        self.save_label = QLabel("Guardar como:")
-        self.save_path = QLabel("No seleccionado")
-        self.save_button = QPushButton("Seleccionar")
+        self.save_label = QLabel("Save as:")
+        self.save_path = QLabel("not selected")
+        self.save_button = QPushButton("Upload file")
         self.save_button.clicked.connect(self.select_save_path)
         
         save_layout.addWidget(self.save_label)
@@ -164,7 +164,7 @@ class MainWindow(QMainWindow):
         file_layout.addLayout(save_layout)
         
         # Parámetros
-        param_group = QGroupBox("Parámetros")
+        param_group = QGroupBox("Parameters")
         param_layout = QVBoxLayout(param_group)
         
         # DPI
@@ -177,7 +177,7 @@ class MainWindow(QMainWindow):
         
         # Umbral
         threshold_layout = QHBoxLayout()
-        threshold_layout.addWidget(QLabel("Umbral:"))
+        threshold_layout.addWidget(QLabel("Threshold:"))
         self.threshold_spin = QSpinBox()
         self.threshold_spin.setRange(1, 50)
         self.threshold_spin.setValue(10)
@@ -205,13 +205,13 @@ class MainWindow(QMainWindow):
         param_layout.addLayout(min_samples_layout)
         
         page_select_layout = QHBoxLayout()
-        page_select_layout.addWidget(QLabel("Páginas a comparar:"))
+        page_select_layout.addWidget(QLabel("Pages to compare:"))
 
-        self.all_pages_radio = QRadioButton("Todas")
+        self.all_pages_radio = QRadioButton("All")
         self.all_pages_radio.setChecked(True)
-        self.specific_pages_radio = QRadioButton("Específicas")
+        self.specific_pages_radio = QRadioButton("Specific Pages")
         self.specific_pages_input = QLineEdit()
-        self.specific_pages_input.setPlaceholderText("Ej: 1-5,8,10-12")
+        self.specific_pages_input.setPlaceholderText("Ex: 1-5,8,10-12")
         self.specific_pages_input.setEnabled(False)
 
         page_select_group = QButtonGroup(self)
@@ -228,10 +228,10 @@ class MainWindow(QMainWindow):
         param_layout.addLayout(page_select_layout)
 
         # Botones de acción
-        action_group = QGroupBox("Acciones")
+        action_group = QGroupBox("Actions")
         action_layout = QVBoxLayout(action_group)
         
-        self.compare_button = QPushButton("Comparar PDFs")
+        self.compare_button = QPushButton("Compare PDFs")
         self.compare_button.clicked.connect(self.start_comparison)
         self.compare_button.setEnabled(False)
         
@@ -251,13 +251,13 @@ class MainWindow(QMainWindow):
         # Área de visualización
         self.view_layout = QHBoxLayout()
         # Visor original (izquierda)
-        self.original_viewer = PDFViewer("PDF Original")
+        self.original_viewer = PDFViewer("Original PDF")
 
         # Visor anotado (derecha)
-        self.annotated_viewer = PDFViewer("PDF Anotado")
-        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Rotar PDF Anotado")
+        self.annotated_viewer = PDFViewer("Annotated PDF")
+        self.rotation_handler = PDFRotationUIHandler(self, self.annotated_viewer, title = "Rotate Annotated PDF")
 
-        self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Rotar PDF Original")
+        self.rotation_original = PDFRotationUIHandler(self, self.original_viewer, self.rotation_handler, title = "Rotate Original PDF")
          
         # Contenedor del visor anotado con el checkbox de círculos
         self.annotated_container = QWidget()
@@ -266,15 +266,15 @@ class MainWindow(QMainWindow):
         
         self.annotated_layout.addWidget(self.annotated_viewer)
         
-        self.toggle_circles = QCheckBox("Mostrar círculos")
+        self.toggle_circles = QCheckBox("Show circles")
         self.toggle_circles.setChecked(True)
         self.toggle_circles.stateChanged.connect(self.toggle_circle_visibility)
 
-        self.toggle_side_by_side = QCheckBox("Vista lado a lado")
+        self.toggle_side_by_side = QCheckBox("Side by side view")
         self.toggle_side_by_side.setChecked(False) #por defecto desactivado
         self.toggle_side_by_side.stateChanged.connect(self.toggle_side_by_side_mode)
 
-        self.rotate_both_pdfs = QCheckBox("Rotar ambos pdf")
+        self.rotate_both_pdfs = QCheckBox("Rotate both pdfs")
         self.rotate_both_pdfs.setChecked(False) #por defecto desactivado
         self.rotate_both_pdfs.stateChanged.connect(self.rotate_both)
 
@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
         changes_layout.setContentsMargins(5, 5, 5, 5)
         
         # Título de la lista de cambios
-        changes_title = QLabel("Cambios Detectados")
+        changes_title = QLabel("Detected Changes")
         changes_title.setAlignment(Qt.AlignCenter)
         changes_title.setStyleSheet("font-size: 11pt; font-weight: bold;")
         

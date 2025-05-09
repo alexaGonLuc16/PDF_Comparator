@@ -149,7 +149,7 @@ class PDFRotator:
 class RotationDialog(QDialog):
     """Diálogo para confirmar y seleccionar opciones de rotación."""
     
-    def __init__(self, parent=None, title ="Rotar PDF"):
+    def __init__(self, parent=None, title ="Rotate PDF"):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.resize(300, 150)
@@ -166,9 +166,9 @@ class RotationDialog(QDialog):
         # Botones de rotación
         btn_layout = QHBoxLayout()
         
-        self.rotate90_btn = QPushButton("Rotar 90° ↻")
-        self.rotate180_btn = QPushButton("Rotar 180° ↻↻")
-        self.rotate270_btn = QPushButton("Rotar 270° ↺")
+        self.rotate90_btn = QPushButton("Rotate 90° ↻")
+        self.rotate180_btn = QPushButton("Rotate 180° ↻↻")
+        self.rotate270_btn = QPushButton("Rotate 270° ↺")
         
         btn_layout.addWidget(self.rotate90_btn)
         btn_layout.addWidget(self.rotate180_btn)
@@ -178,8 +178,8 @@ class RotationDialog(QDialog):
         
         # Opción para rotar todas las páginas o solo la actual
         self.scope_layout = QHBoxLayout()
-        self.current_page_btn = QPushButton("Página actual")
-        self.all_pages_btn = QPushButton("Todas las páginas")
+        self.current_page_btn = QPushButton("Current page")
+        self.all_pages_btn = QPushButton("All pages")
         
         self.scope_layout.addWidget(self.current_page_btn)
         self.scope_layout.addWidget(self.all_pages_btn)
@@ -224,7 +224,7 @@ class RotationDialog(QDialog):
 class PDFRotationUIHandler:
     """Manejador de la interfaz de usuario para la rotación de PDF."""
     
-    def __init__(self, main_window, document_handler, secondary_pdf = None, title = "Rotar PDF"):
+    def __init__(self, main_window, document_handler, secondary_pdf = None, title = "Rotate PDF"):
         """
         Inicializa el manejador de UI para rotación.
         
@@ -251,7 +251,7 @@ class PDFRotationUIHandler:
         self.rotate_action.triggered.connect(self.show_rotation_dialog)
         
         # Crear acción de guardar (nueva)
-        self.save_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/save.png"), "Guardar cambios", self.main_window)
+        self.save_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/save.png"), "Save changes", self.main_window)
         self.save_action.setStatusTip("Guardar los cambios realizados al PDF")
         self.save_action.triggered.connect(self.save_document)
         
@@ -259,24 +259,24 @@ class PDFRotationUIHandler:
         # Si no existe, necesitarías crear el menú primero
         tools_menu = None
         for menu in self.main_window.menuBar().findChildren(QMenu):
-            if menu.title() == "Herramientas":
+            if menu.title() == "Tools":
                 tools_menu = menu
                 break
         
         if not tools_menu:
-            tools_menu = self.main_window.menuBar().addMenu("Herramientas")
+            tools_menu = self.main_window.menuBar().addMenu("Tools")
         
         tools_menu.addAction(self.rotate_action)
         
         # Añadir el botón de guardar al menú Archivo
         file_menu = None
         for menu in self.main_window.menuBar().findChildren(QMenu):
-            if menu.title() == "Archivo":
+            if menu.title() == "File":
                 file_menu = menu
                 break
         
         if not file_menu:
-            file_menu = self.main_window.menuBar().addMenu("Archivo")
+            file_menu = self.main_window.menuBar().addMenu("File")
         
         file_menu.addAction(self.save_action)
         
@@ -403,9 +403,9 @@ class PDFRotationUIHandler:
         # Preguntar si quiere sobrescribir o guardar como
         reply = QMessageBox.question(
             self.main_window,
-            "Guardar cambios",
-            "¿Deseas sobrescribir el archivo original?\n\n"
-            "Selecciona 'No' para guardar como un nuevo archivo.",
+            "Save changes",
+            "You want to overwrite the original file?\n\n"
+            "Select 'No' to save as a new file",
             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
         )
         

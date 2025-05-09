@@ -90,7 +90,7 @@ class ChangesListWidget(QWidget):
         
         # Árbol para mostrar cambios de forma jerárquica
         self.changes_tree = QTreeWidget(self)
-        self.changes_tree.setHeaderLabels(["Página/Cambio", "Activado"])
+        self.changes_tree.setHeaderLabels(["Page/Difference", "State"])
         self.changes_tree.setColumnWidth(0, 150)
         self.changes_tree.itemClicked.connect(self.on_item_clicked)
         
@@ -127,14 +127,14 @@ class ChangesListWidget(QWidget):
             self.changes_description = changes
             if changes:
                 page_item = QTreeWidgetItem(self.changes_tree)
-                page_item.setText(0, f"Página {page_num + 1} ({len(changes)} cambios)")
+                page_item.setText(0, f"Page {page_num + 1} ({len(changes)} differences)")
                 page_item.setData(0, 256, {"type": "page", "page": page_num})
                 
                 # Crear sub-elementos para cada cambio en la página
                 for i, change in enumerate(changes):
                     change_item = QTreeWidgetItem(page_item)
                     # Usar descripción personalizada si existe, de lo contrario usar el texto predeterminado
-                    display_text = change.get("description", f"Cambio {i+1}")
+                    display_text = change.get("description", f"Difference {i+1}")
                     change_item.setText(0, display_text)
                     change_item.setData(0, 256, {"type": "change", "page": page_num, "index": i})
                     
@@ -270,14 +270,14 @@ class PDFViewer(QWidget):
         # Controles de navegación
         nav_layout = QHBoxLayout()
         
-        self.prev_button = QPushButton("Anterior")
+        self.prev_button = QPushButton("Previous")
         self.prev_button.clicked.connect(self.prev_page)
         self.prev_button.setEnabled(False)
         
-        self.page_info = QLabel("Página 0 de 0")
+        self.page_info = QLabel("Page 0 of 0")
         self.page_info.setAlignment(Qt.AlignCenter)
         
-        self.next_button = QPushButton("Siguiente")
+        self.next_button = QPushButton("Next")
         self.next_button.clicked.connect(self.next_page)
         self.next_button.setEnabled(False)
         
@@ -300,10 +300,10 @@ class PDFViewer(QWidget):
         
         watermark_layout = QHBoxLayout()
 
-        self.watermark_button = QPushButton("Marca de Agua (Página Actual)")
+        self.watermark_button = QPushButton("Watermark(current page)")
         self.watermark_button.clicked.connect(self.select_watermark_image)
 
-        self.watermark_all_button = QPushButton("Marca de Agua (Todas las Páginas)")
+        self.watermark_all_button = QPushButton("Watermark(all pages)")
         self.watermark_all_button.clicked.connect(self.select_watermark_for_all_pages)
 
         watermark_layout.addWidget(self.watermark_button)
@@ -315,7 +315,7 @@ class PDFViewer(QWidget):
         layout.addLayout(watermark_layout)  # Añadir el nuevo layout
         
         # Agregamos una lista de cambios solo si este es el visor de PDF anotado
-        if "PDF Anotado" in self.title:
+        if "Annotated PDF" in self.title:
             print("Inicializando lista de cambios para el PDF Anotado")
             print("------------------------------------------------------------------------------------")
             self.changes_list_widget = ChangesListWidget(self)
@@ -546,7 +546,8 @@ class PDFViewer(QWidget):
                         
                         # Si la distancia es menor o igual al radio, el cursor está sobre el círculo
                         if distance <= circle['radius']:
-                            tooltip_text = self.changes_list_widget.changes_description[i].get("description", f"Cambio {i+1}")
+                            print("i",i)
+                            tooltip_text = self.changes_list_widget.changes_description[i].get("description", f"Difference {i+1}")
                             break
                 
                 QToolTip.showText(event.globalPos(), tooltip_text, self.page_label)
@@ -588,7 +589,7 @@ class PDFViewer(QWidget):
             adjusted_y = label_pos.y()
             
             # Mostrar un tooltip con información básica
-            tooltip_text = f"Posición: X={adjusted_x}, Y={adjusted_y}\nPágina: {self.current_page + 1} de {self.document.page_count}"
+            tooltip_text = f"Posición: X={adjusted_x}, Y={adjusted_y}\nPage: {self.current_page + 1} of {self.document.page_count}"
             
             # Añadir información sobre qué documento se está mostrando
             if hasattr(self, 'showing_original') and self.showing_original:
@@ -813,9 +814,9 @@ class PDFViewer(QWidget):
         # Cambiar el título según el PDF que se está mostrando
         if hasattr(self, 'title_label'):
             if is_original:
-                self.title_label.setText("PDF Original")
+                self.title_label.setText("Original PDF")
             else:
-                self.title_label.setText("PDF Anotado")
+                self.title_label.setText("Annotated PDF")
 
         # Guardar la posición actual del scroll
         h_value = self.scroll_area.horizontalScrollBar().value()
@@ -1033,7 +1034,7 @@ class PDFViewer(QWidget):
     def update_page_info(self):
         """Actualiza la información de página actual."""
         if self.document:
-            self.page_info.setText(f"Página {self.current_page + 1} de {self.document.page_count}")
+            self.page_info.setText(f"Page {self.current_page + 1} of {self.document.page_count}")
             
             # Actualizar la lista de cambios para la página actual (solo si existe)
             if self.has_changes_list() and hasattr(self, 'formatted_circles_by_page'):
