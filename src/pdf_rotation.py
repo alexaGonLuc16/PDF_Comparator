@@ -489,7 +489,7 @@ class PDFRotationUIHandler:
     def mark_document_as_saved(self):
         """Marca el documento como guardado en la UI."""
         # Actualizar el título de la ventana para quitar el asterisco
-        import os
+
         filename = os.path.basename(self.document_handler.file_path) if self.document_handler.file_path else "Sin título"
         self.main_window.setWindowTitle(f"PDF Comparator - {filename}")
         

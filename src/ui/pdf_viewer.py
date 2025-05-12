@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt5.QtGui import QPixmap, QImage, QKeyEvent
 from PyQt5.QtCore import Qt, QByteArray, pyqtSignal, QEvent, QPoint, QRect, QSize
 from src.pdf_rotation import PDFRotationUIHandler
+#from src.pdf_rotation import PDFRotationUIHandler
 
 from math import sqrt
 
@@ -538,7 +539,8 @@ class PDFViewer(QWidget):
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
-                    
+                    print("Current page",self.current_page)
+                    print(self.changes_list_widget.changes_description)
                     # Verificar cada círculo en la página actual
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
                         # Calcular distancia entre el cursor y el centro del círculo

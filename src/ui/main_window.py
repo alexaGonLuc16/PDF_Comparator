@@ -92,13 +92,11 @@ class WorkerThread(QThread):
         pdf_annotator.add_circle_annotations(source_pdf2, circles_by_page, self.output_path, dpi=self.dpi)
         
         # Guardar información de círculos para uso en la UI
-        pdf_annotator.save_circles_to_json(circles_by_page, f"{self.output_path}.json")
+        pdf_annotator.save_changes_to_json(self.pdf1, circles_by_page)
         
         self.progress.emit(100)
         self.finished.emit(self.output_path, circles_by_page)
-        
         #habilitar click event para descarte de circulos
-        
 
 class MainWindow(QMainWindow):
     def __init__(self):

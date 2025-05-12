@@ -88,7 +88,7 @@ def process_command_line():
     pdf_annotator.add_circle_annotations(args.pdf2, circles_by_page, output_pdf, dpi=args.dpi)
     
     # Guardar información de círculos para posible uso posterior
-    pdf_annotator.save_circles_to_json(circles_by_page, f"{output_pdf}.json")
+    pdf_annotator.save_changes_to_json(pdf_annotator.input_pdf ,circles_by_page)
     
     print(f"Proceso completado. PDF anotado guardado en: {output_pdf}")
     return output_pdf
