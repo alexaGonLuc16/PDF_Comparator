@@ -13,9 +13,6 @@ Issues:
 
 para martes 8 de abril:
 --el cambio de pdf no funciona si se hace despues de hacer click en un cambio
---ajustar layout de componentes
---quitar el menu de seleccion de archivos para que haya mas espacio
---implementar checkboxes de toggle de cambios para el usuario
 
 Excepciones de funcionamiento: 
 -- el toggle individual de los circulos solo funciona cuando el zoom esta en 100%
@@ -26,3 +23,9 @@ Pendientes:
 --implementar division del pdf
 --Pendiente: Al habilitar la rotacion simultanea: eliminar uno de los botones de rotacion y dejar solo uno
 --Implementar subrayado cuando hay rotacion
+
+Issue:
+--Error al guardar el documento --> def save_document(self): no devuelve los valores esperados 
+--Modificar la ruta en donde se guarda el json
+--Corregir en la arquitectura que el guardado del documento no se haga desde pdf_rotator.py, se tiene que hacer en un modulo accesible por los archivos que modifican el pdf
+--Una solucion rapida seria intentar llamar a save_document desde pdf_viewer o pdf_annotator

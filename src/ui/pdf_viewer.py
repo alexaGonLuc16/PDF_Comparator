@@ -230,7 +230,7 @@ class PDFViewer(QWidget):
         self.changes_list_widget = None  # Inicializar a None
         self.original_document = None # para almacenal el pdf original
         self.showing_original = False # para mostrar el pdf anotado
-        self.formatted_circles_page = {}
+        self.formatted_circles_by_page = {}
         self.init_ui()
         self.setMouseTracking(True)  # Importante: habilita el seguimiento del mouse incluso sin clic
         self.page_label.setMouseTracking(True)  # También habilítalo para el label del PDF
@@ -539,8 +539,6 @@ class PDFViewer(QWidget):
                     
                     doc_x = mouse_pos.x() * total_scale
                     doc_y = mouse_pos.y() * total_scale
-                    print("Current page",self.current_page)
-                    print(self.changes_list_widget.changes_description)
                     # Verificar cada círculo en la página actual
                     for i, circle in enumerate(self.formatted_circles_by_page[self.current_page]):
                         # Calcular distancia entre el cursor y el centro del círculo

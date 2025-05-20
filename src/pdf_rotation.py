@@ -1,13 +1,15 @@
 import tempfile
 import os
 import shutil
+import datetime
+import json
 import fitz  # PyMuPDF
 from PyQt5.QtWidgets import (
     QAction, QMenu, QToolBar, QToolButton, 
     QMessageBox, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QFileDialog
 )
 from PyQt5.QtGui import QIcon, QTransform, QPixmap, QImage
-from PyQt5.QtCore import Qt, pyqtSignal, QByteArray
+from PyQt5.QtCore import Qt, pyqtSignal, QByteArray, QObject
 
 class PDFRotator:
     """Clase para manejar la rotación de archivos PDF."""
@@ -15,7 +17,6 @@ class PDFRotator:
     def __init__(self, document_handler):
         """
         Inicializa el rotador de PDF.
-        
         Args:
             document_handler: Objeto que maneja el documento PDF actual
                              (debe tener atributos doc y current_page)
@@ -24,7 +25,9 @@ class PDFRotator:
         # Nueva variable para rastrear si hay cambios sin guardar
         self.has_unsaved_changes = False
         self.temp_path = None
-    
+        self.rotations_by_page = {} #diccionario de rotacion por pagina(index , value)
+        self.changes_by_page = {} #copia de los cambios(circulos) para el json
+
     def rotate_page(self, page_index, degrees):
         """
         Rota una página específica del PDF.
@@ -97,6 +100,7 @@ class PDFRotator:
             return False
     
     def save_document(self, file_path=None):
+        
         """
         Guarda el documento con las rotaciones aplicadas.
         
@@ -120,17 +124,22 @@ class PDFRotator:
             temp_fd, self.temp_path = tempfile.mkstemp(suffix=".pdf")
             os.close(temp_fd)
             
-            # Guardar en el archivo temporal
-            self.document_handler.document.save(
+            doc_copy = fitz.open()
+            
+            for page_idx in range(len(self.document_handler.document)):
+                doc_copy.insert_pdf(self.document_handler.document, from_page=page_idx, to_page=page_idx)
+            
+            # Guardar la copia temporal
+            doc_copy.save(
                 self.temp_path,
                 garbage=4,  # Máxima limpieza
                 deflate=True,  # Comprimir
                 clean=True  # Limpiar y reducir tamaño
             )
-
-            # Cerrar el documento actual (importante para liberar el archivo)
-            self.document_handler.document.close()
             
+            # Cerrar el documento temporal
+            doc_copy.close()
+    
             # Reemplazar el archivo de destino con el temporal
             shutil.copy2(self.temp_path, save_path)
             
@@ -139,12 +148,123 @@ class PDFRotator:
             
             # Reiniciar la variable de cambios sin guardar
             self.has_unsaved_changes = False
+
+            print("Path", file_path)
+            #guardar archivo json
+            print("Rotations by page: ", self.rotations_by_page)
+            
+            json_path = os.path.splitext(save_path)[0] + "_changes.json"
+            print("Path para el json", json_path)
+            self.save_changes_to_json(original_pdf = save_path, formatted_circles_by_page = self.changes_by_page , rotations_by_page = self.rotations_by_page, output_path = json_path)
             
             return True, current_page
         except Exception as e:
             print(f"Error al guardar el documento: {str(e)}")
-            return False
+            return False, 0
+        
+    def save_changes_to_json(self, original_pdf, formatted_circles_by_page = None, 
+                           highlights_by_page=None, rotations_by_page=None, 
+                           watermarks=None, output_path=None, dpi=300):
+        """
+        Guarda los cambios aplicados a un PDF en un archivo JSON.
+        
+        Args:
+            original_pdf: Ruta al PDF original
+            formatted_circles_by_page: Diccionario de cambios por página
+            highlights_by_page: Diccionario de highlights por página
+            rotations_by_page: Diccionario de rotaciones por página
+            watermarks: Lista de marcas de agua aplicadas
+            output_path: Ruta donde guardar el archivo JSON
+            dpi: DPI usados para la conversión a imagen
+        
+        Returns:
+            Ruta al archivo JSON guardado
+        """
+        '''
+        if not output_path:
+            #base_name = os.path.basename(original_pdf)
+            #output_path = os.path.join(original_pdf, f"{os.path.splitext(base_name)[0]}_changes.json")
+            output_path = 'C:/Users/alexgonzalez/Downloads/final_rotated1_changes.json'
+        '''
+        try:
+            # Inicializar estructura del JSON
+            json_data = {
+                "metadata": {
+                    "original_pdf": original_pdf,
+                    "processed_date": datetime.datetime.now().isoformat(),
+                    "version": "1.0",
+                    "dpi": dpi
+                },
+                "pages": {},
+                "watermarks": watermarks or []
+            }
 
+            if formatted_circles_by_page:
+                # Agregar información de cambios por página
+                for page_num, changes in formatted_circles_by_page.items():
+                    # Convertir a string ya que las claves JSON deben ser strings
+                    page_key = str(page_num)
+                    
+                    if page_key not in json_data["pages"]:
+                        json_data["pages"][page_key] = {
+                            "changes": [],
+                            "highlights": [],
+                            "rotation": 0
+                        }
+                    # Agregar cambios a la página
+
+                    #changes es una lista de diccionarios
+
+                    for change in changes:
+                        change_data = {
+                            "x": change['x'],
+                            "y": change['y'],
+                            "radius": change['radius'],
+                            #"change_type": change.get("change_type", "unknown"),
+                            #"description": change.get("description", f"Cambio {len(json_data['pages'][page_key]['changes']) + 1}"),
+                            #"selected": change.get("selected", True)
+                        }
+                        
+                        json_data["pages"][page_key]["changes"].append(change_data)
+
+            # Agregar highlights por página si están disponibles
+            if highlights_by_page:
+                for page_num, highlights in highlights_by_page.items():
+                    page_key = str(page_num)
+                    
+                    if page_key not in json_data["pages"]:
+                        json_data["pages"][page_key] = {
+                            "changes": [],
+                            "highlights": [],
+                            "rotation": 0
+                        }
+                    
+                    json_data["pages"][page_key]["highlights"] = highlights
+
+            # Agregar rotaciones por página si están disponibles
+            if rotations_by_page:
+                for page_num, rotation in rotations_by_page.items():
+                    page_key = str(page_num)
+                    
+                    if page_key not in json_data["pages"]:
+                        json_data["pages"][page_key] = {
+                            "changes": [],
+                            "highlights": [],
+                            "rotation": 0
+                        }
+                    
+                    json_data["pages"][page_key]["rotation"] = rotation
+            
+            # Guardar el JSON
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2)
+
+            print("Json saved successfully!")
+            
+            return output_path
+        except Exception as e:
+            print(f"Error al guardar el json: {str(e)}")
+            return ""
 
 class RotationDialog(QDialog):
     """Diálogo para confirmar y seleccionar opciones de rotación."""
@@ -221,10 +341,12 @@ class RotationDialog(QDialog):
         return self.rotation_degrees, self.rotation_scope
 
 
-class PDFRotationUIHandler:
+class PDFRotationUIHandler(QObject):
     """Manejador de la interfaz de usuario para la rotación de PDF."""
-    
+    save_doc_signal = pyqtSignal(bool)  # Señal para comunicar clics
+
     def __init__(self, main_window, document_handler, secondary_pdf = None, title = "Rotate PDF"):
+        super().__init__()
         """
         Inicializa el manejador de UI para rotación.
         
@@ -237,9 +359,10 @@ class PDFRotationUIHandler:
         self.secondary_pdf = secondary_pdf
         self.rotator = PDFRotator(document_handler)
         self.file_path = None
+        self.original_file_path = None
         self.title = title
         self.rotate_both = False
-
+        
         # Inicializar elementos de UI
         self.setup_ui_elements()
     
@@ -250,7 +373,7 @@ class PDFRotationUIHandler:
         self.rotate_action.setStatusTip("Rotar páginas del PDF")
         self.rotate_action.triggered.connect(self.show_rotation_dialog)
         
-        # Crear acción de guardar (nueva)
+        # Crear acción de guardar (guardar pdf y json con las anotaciones)
         self.save_action = QAction(QIcon("C:/PDF_Comparator/src/ui/icons/save.png"), "Save changes", self.main_window)
         self.save_action.setStatusTip("Guardar los cambios realizados al PDF")
         self.save_action.triggered.connect(self.save_document)
@@ -330,6 +453,9 @@ class PDFRotationUIHandler:
                 # Rotar solo la página actual
                 current_page = self.secondary_pdf.document_handler.current_page
                 success = self.secondary_pdf.rotator.rotate_page(current_page, degrees)
+                
+                #guardar rotacion en diccionario para el json
+                self.rotator.rotations_by_page[current_page] = degrees
 
             else:  # scope == "all"
                 # Rotar todas las páginas
@@ -349,6 +475,9 @@ class PDFRotationUIHandler:
             # Rotar solo la página actual
             current_page = self.document_handler.current_page
             success = self.rotator.rotate_page(current_page, degrees)
+
+            #guardar rotacion en diccionario para el json
+            self.rotator.rotations_by_page[current_page] = degrees
 
         else:  # scope == "all"
             # Rotar todas las páginas
@@ -439,6 +568,8 @@ class PDFRotationUIHandler:
                 return  # Usuario canceló el diálogo
         
         # Guardar el documento (esto cerrará el documento si es necesario)
+        
+        self.save_doc_signal.emit(True) #emitir senal para actualizar circulos de cambios
         success, current_page = self.rotator.save_document(file_path)
         
         if success:

@@ -92,7 +92,7 @@ class WorkerThread(QThread):
         pdf_annotator.add_circle_annotations(source_pdf2, circles_by_page, self.output_path, dpi=self.dpi)
         
         # Guardar información de círculos para uso en la UI
-        pdf_annotator.save_changes_to_json(self.pdf1, circles_by_page)
+        #pdf_annotator.save_changes_to_json(self.pdf1, circles_by_page)
         
         self.progress.emit(100)
         self.finished.emit(self.output_path, circles_by_page)
@@ -318,8 +318,18 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.circle_clicked.connect(self.handle_circle_click)
         self.annotated_viewer.update_annotations.connect(self.update_annotations)
         self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
+        
+        #connect signal to update circle changes
+        self.rotation_handler.save_doc_signal.connect(self.update_cicles_by_page_json)
+        self.rotation_original.save_doc_signal.connect(self.update_cicles_by_page_json)
 
         print("UI de MainWindow inicializada")
+
+    def update_cicles_by_page_json(self, signal_update):
+        #hacer copia de los circulos identificados para el json 
+        if signal_update:
+            self.rotation_handler.rotator.changes_by_page = self.annotated_viewer.formatted_circles_by_page
+            self.rotation_original.rotator.changes_by_page = self.original_viewer.formatted_circles_by_page
 
     def on_document_modified(self):
         self.document_modified = True
