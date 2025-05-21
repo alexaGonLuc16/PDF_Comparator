@@ -27,6 +27,7 @@ class PDFRotator:
         self.temp_path = None
         self.rotations_by_page = {} #diccionario de rotacion por pagina(index , value)
         self.changes_by_page = {} #copia de los cambios(circulos) para el json
+        self.highlights_by_page = {}
 
     def rotate_page(self, page_index, degrees):
         """
@@ -155,7 +156,12 @@ class PDFRotator:
             
             json_path = os.path.splitext(save_path)[0] + "_changes.json"
             print("Path para el json", json_path)
-            self.save_changes_to_json(original_pdf = save_path, formatted_circles_by_page = self.changes_by_page , rotations_by_page = self.rotations_by_page, output_path = json_path)
+
+            self.save_changes_to_json(original_pdf = save_path, 
+                                    formatted_circles_by_page = self.changes_by_page ,
+                                    highlights_by_page = self.highlights_by_page, 
+                                    rotations_by_page = self.rotations_by_page, 
+                                    output_path = json_path)
             
             return True, current_page
         except Exception as e:

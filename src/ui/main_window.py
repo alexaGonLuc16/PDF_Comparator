@@ -320,16 +320,19 @@ class MainWindow(QMainWindow):
         self.annotated_viewer.set_clicks_enabled(False)  # inicialmente deshabilitado
         
         #connect signal to update circle changes
-        self.rotation_handler.save_doc_signal.connect(self.update_cicles_by_page_json)
-        self.rotation_original.save_doc_signal.connect(self.update_cicles_by_page_json)
+        self.rotation_handler.save_doc_signal.connect(self.update_annotations_by_page_json)
+        self.rotation_original.save_doc_signal.connect(self.update_annotations_by_page_json)
 
         print("UI de MainWindow inicializada")
 
-    def update_cicles_by_page_json(self, signal_update):
+    def update_annotations_by_page_json(self, signal_update):
         #hacer copia de los circulos identificados para el json 
         if signal_update:
             self.rotation_handler.rotator.changes_by_page = self.annotated_viewer.formatted_circles_by_page
             self.rotation_original.rotator.changes_by_page = self.original_viewer.formatted_circles_by_page
+            self.rotation_handler.rotator.highlights_by_page = self.annotated_viewer.highlights_by_page
+            self.rotation_original.rotator.highlights_by_page = self.original_viewer.highlights_by_page
+            print("Hihglights by page", self.rotation_handler.rotator.highlights_by_page)
 
     def on_document_modified(self):
         self.document_modified = True

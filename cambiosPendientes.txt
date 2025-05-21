@@ -29,3 +29,7 @@ Issue:
 --Modificar la ruta en donde se guarda el json
 --Corregir en la arquitectura que el guardado del documento no se haga desde pdf_rotator.py, se tiene que hacer en un modulo accesible por los archivos que modifican el pdf
 --Una solucion rapida seria intentar llamar a save_document desde pdf_viewer o pdf_annotator
+
+Revisar:
+
+se hace el doble de highlights, uno escalado y el otro correcto

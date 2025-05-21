@@ -242,6 +242,7 @@ class PDFViewer(QWidget):
         self.highlight_start = None  # Coordenada inicial del subrayado
         self.highlight_end = None  # Coordenada final del subrayado
         self.temp_highlight_annot = None  # Para almacenar la anotación temporal
+        self.highlights_by_page = {}
     
     def init_ui(self):
         # Layout principal
@@ -699,6 +700,21 @@ class PDFViewer(QWidget):
 
         # Crear rectángulo en coordenadas de PDF
         rect = fitz.Rect(pdf_x0, pdf_y0, pdf_x1, pdf_y1)
+
+        new_highlight = {}
+        #define dictionary
+        new_highlight['x0'] = rect[0]   
+        new_highlight['y0'] = rect[1]  
+        new_highlight['x1'] = rect[2]  
+        new_highlight['y2'] = rect[3]
+        
+        if self.current_page in self.highlights_by_page:  
+
+            self.highlights_by_page[self.current_page].append(new_highlight)
+            print("Anotation added: ",self.highlights_by_page[self.current_page][-1])
+        else:
+            self.highlights_by_page[self.current_page] = [new_highlight]
+            print("Anotation added: ",self.highlights_by_page[self.current_page])
         
         #print(f"Ventana maximizada: {is_maximized}, Offset aplicado: {offset_x}")
         print(f"Coords pantalla (ajustadas): ({x0}, {y0}) a ({x1}, {y1})")
