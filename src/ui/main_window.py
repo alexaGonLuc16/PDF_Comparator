@@ -332,7 +332,11 @@ class MainWindow(QMainWindow):
             self.rotation_original.rotator.changes_by_page = self.original_viewer.formatted_circles_by_page
             self.rotation_handler.rotator.highlights_by_page = self.annotated_viewer.highlights_by_page
             self.rotation_original.rotator.highlights_by_page = self.original_viewer.highlights_by_page
+            self.rotation_handler.rotator.watermarks_by_page = self.annotated_viewer.watermarks_by_page
+            self.rotation_original.rotator.watermarks_by_page = self.original_viewer.watermarks_by_page
+
             print("Hihglights by page", self.rotation_handler.rotator.highlights_by_page)
+            print("Watermarks by page", self.rotation_handler.rotator.watermarks_by_page)
 
     def on_document_modified(self):
         self.document_modified = True

@@ -243,6 +243,7 @@ class PDFViewer(QWidget):
         self.highlight_end = None  # Coordenada final del subrayado
         self.temp_highlight_annot = None  # Para almacenar la anotación temporal
         self.highlights_by_page = {}
+        self.watermarks_by_page = {} #Alacenar las marcas de agua por pagina : {"path","opacity"}
     
     def init_ui(self):
         # Layout principal
@@ -344,6 +345,8 @@ class PDFViewer(QWidget):
             if opacity_dialog.exec_() == QDialog.Accepted:
                 opacity = opacity_dialog.get_opacity()
                 self.apply_watermark_image(file_path, opacity)
+                self.watermarks_by_page[self.current_page] = {"path" : file_path, "opacity": opacity}
+
                 return True
         return False
         
@@ -706,7 +709,7 @@ class PDFViewer(QWidget):
         new_highlight['x0'] = rect[0]   
         new_highlight['y0'] = rect[1]  
         new_highlight['x1'] = rect[2]  
-        new_highlight['y2'] = rect[3]
+        new_highlight['y1'] = rect[3]
         
         if self.current_page in self.highlights_by_page:  
 

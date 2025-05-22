@@ -64,7 +64,7 @@ class PDFAnnotator:
     '''
     def save_changes_to_json(self, original_pdf, formatted_circles_by_page, 
                            highlights_by_page=None, rotations_by_page=None, 
-                           watermarks=None, output_path=None, dpi=300):
+                           watermarks_by_page=None, output_path=None, dpi=300):
         print("Changes", formatted_circles_by_page)
         """
         Guarda los cambios aplicados a un PDF en un archivo JSON.
@@ -93,8 +93,7 @@ class PDFAnnotator:
                 "version": "1.0",
                 "dpi": dpi
             },
-            "pages": {},
-            "watermarks": watermarks or []
+            "pages": {}
         }
         
         # Agregar información de cambios por página
@@ -106,7 +105,8 @@ class PDFAnnotator:
                 json_data["pages"][page_key] = {
                     "changes": [],
                     "highlights": [],
-                    "rotation": 0
+                    "rotation": 0,
+                    "watermarks": watermarks_by_page or []
                 }
             
             # Agregar cambios a la página
@@ -130,7 +130,8 @@ class PDFAnnotator:
                     json_data["pages"][page_key] = {
                         "changes": [],
                         "highlights": [],
-                        "rotation": 0
+                        "rotation": 0,
+                        "watermark": watermarks_by_page or []
                     }
                 
                 json_data["pages"][page_key]["highlights"] = highlights
@@ -144,11 +145,27 @@ class PDFAnnotator:
                     json_data["pages"][page_key] = {
                         "changes": [],
                         "highlights": [],
-                        "rotation": 0
+                        "rotation": 0,
+                        "watermark": watermarks_by_page or []
                     }
                 
                 json_data["pages"][page_key]["rotation"] = rotation
-        
+
+        # Agregar watermarks por página si están disponibles
+        if watermarks_by_page:
+            for page_num, watermark in watermarks_by_page.items():
+                page_key = str(page_num)
+                
+                if page_key not in json_data["pages"]:
+                    json_data["pages"][page_key] = {
+                        "changes": [],
+                        "highlights": [],
+                        "rotation": 0,
+                        "watermark": watermarks_by_page or []
+                    }
+                
+                json_data["pages"][page_key]["watermark"] = watermark
+
         # Guardar el JSON
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=2)

@@ -28,6 +28,7 @@ class PDFRotator:
         self.rotations_by_page = {} #diccionario de rotacion por pagina(index , value)
         self.changes_by_page = {} #copia de los cambios(circulos) para el json
         self.highlights_by_page = {}
+        self.watermarks_by_page = {} 
 
     def rotate_page(self, page_index, degrees):
         """
@@ -161,6 +162,7 @@ class PDFRotator:
                                     formatted_circles_by_page = self.changes_by_page ,
                                     highlights_by_page = self.highlights_by_page, 
                                     rotations_by_page = self.rotations_by_page, 
+                                    watermarks_by_page=self.watermarks_by_page,
                                     output_path = json_path)
             
             return True, current_page
@@ -170,7 +172,7 @@ class PDFRotator:
         
     def save_changes_to_json(self, original_pdf, formatted_circles_by_page = None, 
                            highlights_by_page=None, rotations_by_page=None, 
-                           watermarks=None, output_path=None, dpi=300):
+                           watermarks_by_page =None, output_path=None, dpi=300):
         """
         Guarda los cambios aplicados a un PDF en un archivo JSON.
         
@@ -201,8 +203,7 @@ class PDFRotator:
                     "version": "1.0",
                     "dpi": dpi
                 },
-                "pages": {},
-                "watermarks": watermarks or []
+                "pages": {}
             }
 
             if formatted_circles_by_page:
@@ -215,7 +216,8 @@ class PDFRotator:
                         json_data["pages"][page_key] = {
                             "changes": [],
                             "highlights": [],
-                            "rotation": 0
+                            "rotation": 0,
+                            "watermarks": watermarks_by_page or []
                         }
                     # Agregar cambios a la página
 
@@ -242,7 +244,8 @@ class PDFRotator:
                         json_data["pages"][page_key] = {
                             "changes": [],
                             "highlights": [],
-                            "rotation": 0
+                            "rotation": 0,
+                            "watermarks": watermarks_by_page or []
                         }
                     
                     json_data["pages"][page_key]["highlights"] = highlights
@@ -256,11 +259,26 @@ class PDFRotator:
                         json_data["pages"][page_key] = {
                             "changes": [],
                             "highlights": [],
-                            "rotation": 0
+                            "rotation": 0,
+                            "watermarks": watermarks_by_page or []
                         }
                     
                     json_data["pages"][page_key]["rotation"] = rotation
             
+            # Agregar watermarks por página si están disponibles
+            if watermarks_by_page:
+                for page_num, watermark in watermarks_by_page.items():
+                    page_key = str(page_num)
+                    
+                    if page_key not in json_data["pages"]:
+                        json_data["pages"][page_key] = {
+                            "changes": [],
+                            "highlights": [],
+                            "rotation": 0
+                        }
+                    
+                    json_data["pages"][page_key]["watermarks"] = watermark
+
             # Guardar el JSON
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, indent=2)
@@ -271,7 +289,7 @@ class PDFRotator:
         except Exception as e:
             print(f"Error al guardar el json: {str(e)}")
             return ""
-
+    
 class RotationDialog(QDialog):
     """Diálogo para confirmar y seleccionar opciones de rotación."""
     

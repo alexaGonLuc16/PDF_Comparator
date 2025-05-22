@@ -33,3 +33,4 @@ Issue:
 Revisar:
 
 se hace el doble de highlights, uno escalado y el otro correcto
+Checar por que paarece el mensaje de error aunque los cambios si se apliquen en el PDF_Comparator - Copy
