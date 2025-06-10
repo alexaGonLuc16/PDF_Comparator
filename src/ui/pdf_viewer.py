@@ -946,10 +946,7 @@ class PDFViewer(QWidget):
         if self.page_label.pixmap() is None:
             print("Error: No hay pixmap en page_label")
             return
-            
-        pixmap_width = self.page_label.pixmap().width()
-        pixmap_height = self.page_label.pixmap().height()
-
+        
         # Calcular la posición del cambio en el pixmap con el zoom actual
         change_x = change['x']
         change_y = change['y']
@@ -965,11 +962,11 @@ class PDFViewer(QWidget):
         # Ajustar el scroll para centrar el cambio
         h_value = max(0, int(h_scroll*scroll_x-self.width()/2))
         v_value = max(0, int(v_scroll*scroll_y-self.height()/2))
-        
+   
         # Limitar los valores de scroll a los máximos permitidos
         h_value = min(h_value, self.scroll_area.horizontalScrollBar().maximum())
         v_value = min(v_value, self.scroll_area.verticalScrollBar().maximum())
-        
+
         # Establecer los valores de scroll
         self.scroll_area.horizontalScrollBar().setValue(h_value)
         self.scroll_area.verticalScrollBar().setValue(v_value)
